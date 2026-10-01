@@ -1,0 +1,193 @@
+"""Everything Fixel draws in the terminal."""
+
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from typing import AsyncIterator
+
+from prompt_toolkit import PromptSession
+from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.key_binding import KeyBindings
+from prompt_toolkit.patch_stdout import patch_stdout
+from rich.console import Console, Group
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.panel import Panel
+from rich.spinner import Spinner
+from rich.syntax import Syntax
+from rich.text import Text
+
+from .parse import Header, split_header
+
+BADGES = {
+    "error": "bold white on red",
+    "math": "bold black on cyan",
+    "doc": "bold black on yellow",
+    "ui": "bold white on blue",
+    "general": "bold black on white",
+}
+ACTION_KEYS = (
+    ("c-y", "copy"),
+    ("c-r", "run"),
+    ("c-s", "save"),
+    ("c-l", "learn"),
+    ("c-f", "follow"),
+    ("c-o", "open"),
+    ("c-n", "new"),
+)
+HELP = """\
+**Screenshot:** double-tap **Right Option ⌥**, then drag over anything. Shots wait in the tray; \
+double-tap again to add more (up to 5).
+**Ask:** press **Enter**, or type a question first. Typing after an answer asks a follow-up.
+
+| Key | Does |
+|---|---|
+| ⌃Y | copy the fix / answer / draft |
+| ⌃R | run the suggested shell command (asks first) |
+| ⌃S | save this case as a note in ~/Fixel Notes |
+| ⌃L | learn mode: hints instead of answers (`/answer` reveals) |
+| ⌃F | attach the tray to the current case instead of starting a new one |
+| ⌃O | open the "Seen before" case |
+| ⌃N | new case |
+
+**Commands:** `/model sonnet|opus|gemini` · `/answer` · `/cases <words>` · `/open <number>` · `/help` · `/quit`
+"""
+
+
+@dataclass(frozen=True)
+class KeyAction:
+    name: str
+    buffer: str  # whatever was typed, restored after the action
+
+
+@dataclass
+class Status:
+    """What the bottom toolbar shows. The app writes it; the toolbar reads it every refresh."""
+
+    tray: int = 0
+    follow_up: bool = False
+    hotkey_ok: bool = True
+    flash: str = ""
+    flash_until: float = 0.0
+
+    def flash_msg(self, msg: str, seconds: float = 4.0) -> None:
+        self.flash = msg
+        self.flash_until = time.monotonic() + seconds
+
+
+def toolbar_text(status: Status) -> str:
+    if status.flash and time.monotonic() < status.flash_until:
+        return status.flash
+    if status.tray:
+        plural = "" if status.tray == 1 else "s"
+        follow = "on" if status.follow_up else "off"
+        return f"📸 {status.tray} shot{plural} in tray · ⏎ ask · ⌥⌥ add more · ⌃F follow-up: {follow}"
+    hotkey = "⌥⌥ screenshot" if status.hotkey_ok else "⚠ hotkey off (run fixel setup)"
+    return f"{hotkey} · ⌃Y copy · ⌃R run · ⌃S save · ⌃L learn · ⌃N new · /help"
+
+
+class UI:
+    def __init__(self, console: Console | None = None) -> None:
+        self.console = console or Console()
+        self.status = Status()
+        self._session: PromptSession | None = None
+
+    # ---- input
+
+    def _prompt_session(self) -> PromptSession:
+        if self._session is None:
+            bindings = KeyBindings()
+            for key, name in ACTION_KEYS:
+                bindings.add(key)(self._action_handler(name))
+            self._session = PromptSession(
+                key_bindings=bindings, bottom_toolbar=lambda: toolbar_text(self.status), refresh_interval=0.3
+            )
+        return self._session
+
+    @staticmethod
+    def _action_handler(name: str):
+        def handler(event) -> None:
+            event.app.exit(result=KeyAction(name, event.app.current_buffer.text))
+
+        return handler
+
+    async def prompt(self, default: str = "") -> str | KeyAction | None:
+        """Read one line. ⌃-keys return a KeyAction; ⌃D returns None; ⌃C clears the line."""
+        with patch_stdout(raw=True):
+            try:
+                return await self._prompt_session().prompt_async(HTML("<ansicyan><b>›</b></ansicyan> "), default=default)
+            except KeyboardInterrupt:
+                return ""
+            except EOFError:
+                return None
+
+    async def confirm(self, question: str) -> bool:
+        try:
+            reply = await PromptSession().prompt_async(question)
+        except (KeyboardInterrupt, EOFError):
+            return False
+        return reply.strip().lower() in ("y", "yes")
+
+    # ---- output
+
+    def banner(self, model: str, learn: bool) -> None:
+        self.console.rule(f"[bold cyan]Fixel[/] · {model} · learn: {'on' if learn else 'off'}")
+
+    def info(self, msg: str) -> None:
+        self.console.print(f"[cyan]›[/] {msg}")
+
+    def warn(self, msg: str) -> None:
+        self.console.print(f"[yellow]⚠ {msg}[/]")
+
+    def error(self, msg: str) -> None:
+        self.console.print(f"[bold red]✖ {msg}[/]")
+
+    def help(self) -> None:
+        self.console.print(Markdown(HELP))
+
+    @staticmethod
+    def answer_view(header: Header | None, body: str):
+        if header is None:
+            return Spinner("dots", text=" thinking…")
+        title = Text(f" {header.mode.upper()} ", style=BADGES.get(header.mode, BADGES["general"]))
+        if header.key:
+            title.append(f"  {header.key}", style="dim")
+        return Group(title, Text(""), Markdown(body, code_theme="monokai"))
+
+    async def stream_answer(self, chunks: AsyncIterator[str]) -> tuple[Header, str, str]:
+        """Render a streaming reply live, hiding the header. Returns (header, raw reply, body)."""
+        raw = ""
+        with Live(self.answer_view(None, ""), console=self.console, refresh_per_second=12, vertical_overflow="visible") as live:
+            async for chunk in chunks:
+                raw += chunk
+                parsed = split_header(raw)
+                if parsed is not None:
+                    live.update(self.answer_view(*parsed))
+            header, body = split_header(raw, final=True)
+            live.update(self.answer_view(header, body))
+        return header, raw, body
+
+    def recall_line(self, record) -> None:
+        self.console.print(f"[magenta]📁 Seen before: {record.created_at:%b %d} — {record.key}  (⌃O to open)[/]")
+
+    def action_bar(self) -> None:
+        self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
+        self.console.print("[dim]⌃Y copy · ⌃R run · ⌃S save note · ⌃L learn · ⌃N new[/]")
+
+    def show_command(self, cmd: str) -> None:
+        self.console.print(Panel(Syntax(cmd, "bash", theme="monokai", word_wrap=True), title="Run this?", border_style="yellow"))
+
+    def show_output(self, code: int | None, out: str) -> None:
+        title = "timed out" if code is None else f"exit {code}"
+        style = "green" if code == 0 else "red"
+        self.console.print(Panel(Text(out.rstrip() or "(no output)"), title=title, border_style=style))
+
+    def show_case(self, record) -> None:
+        title = f"#{record.id} · {record.created_at:%Y-%m-%d} · {record.mode} · {record.key or record.question}"
+        self.console.print(Panel(Markdown(record.answer), title=title, border_style="magenta"))
+
+    def show_cases(self, records) -> None:
+        for r in records:
+            self.console.print(f"[bold]#{r.id}[/] {r.created_at:%Y-%m-%d} [dim]{r.mode}[/] {r.key or r.question[:70]}")
+        self.console.print("[dim]Open one with /open <number>[/]")
