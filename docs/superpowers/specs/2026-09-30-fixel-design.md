@@ -28,7 +28,7 @@ Fixel does not train a model. Its quality comes from a frontier model (Claude by
 ## 2. Constraints
 
 - macOS only (tested on Darwin 25). Python ≥ 3.11.
-- Architecture A: a single process running inside a dedicated Terminal window; it inherits Terminal's Accessibility and Screen Recording permissions. Closing the window quits Fixel.
+- Architecture A: a single process running inside a dedicated Terminal window; it inherits Terminal's Input Monitoring and Screen Recording permissions. Closing the window quits Fixel. `fixel` opens that Terminal.app window; `fixel --here` runs in the current terminal (permissions then belong to that terminal app).
 - Default model: `claude-sonnet-5-5`. `/model` switches between `sonnet`, `opus` (`claude-opus-5-5`), and `gemini` (model id configurable in `~/.fixel/config.toml`; verify the current id at implementation time).
 - API keys are stored in the macOS Keychain (via `keyring`) and never written to plain files. The `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` env vars override Keychain values when set.
 - Screenshots are sent only to the selected model provider. Everything else stays local.
@@ -39,9 +39,12 @@ Fixel does not train a model. Its quality comes from a frontier model (Claude by
 fixel/
   __main__.py      # `fixel` / `fixel setup` entry points
   app.py           # main asyncio loop; wires components together
-  hotkey.py        # Right-Option double-tap detector (pynput listener thread)
-  capture.py       # `screencapture -i` wrapper → PNG bytes | None
-  permissions.py   # Accessibility + Screen Recording preflight checks
+  hotkey.py        # Right-Option double-tap detector + Quartz listen-only event tap thread
+  capture.py       # `screencapture -i` wrapper → PNG bytes | None (downscales > 1568 px)
+  terminal.py      # open Fixel in a Terminal.app window; raise that window
+  permissions.py   # Input Monitoring + Screen Recording preflight checks
+  session.py       # tray / case state (pure, testable)
+  setup.py         # `fixel setup`: keys → Keychain, key/model validation, permission prompts
   brain/
     base.py        # Provider protocol: stream(messages, system) -> AsyncIterator[str]
     claude.py      # Anthropic SDK impl (streaming, prompt caching on system prompt)
@@ -60,15 +63,15 @@ Each unit has one job. `ui.py` is the only module that touches the terminal, so 
 
 ### Threading model
 
-`pynput` runs its listener on its own thread. On a detected double-tap it calls `loop.call_soon_threadsafe(queue.put_nowait, HotkeyEvent)`. The asyncio main loop runs the `prompt_toolkit` prompt under `patch_stdout()` and concurrently consumes the hotkey queue. A hotkey event:
+A Quartz listen-only event tap (pyobjc, no pynput — avoids pynput's keyboard-layout lookups off the main thread, which crash on recent macOS) runs a CFRunLoop on its own thread. On a detected double-tap it calls `loop.call_soon_threadsafe(queue.put_nowait, None)`. The asyncio main loop runs the `prompt_toolkit` prompt and concurrently consumes the hotkey queue. A hotkey event:
 
-1. activates the Fixel Terminal window (`osascript` activating Terminal and selecting the window by its title, `Fixel`),
-2. runs `screencapture -i -x <tmpfile>` in a worker thread,
-3. appends the PNG to the tray and refreshes the status line.
+1. runs `screencapture -i -x <file>` as an async subprocess — **before** raising Fixel, so the Fixel window doesn't cover what you want to capture,
+2. appends the PNG to the tray (bottom toolbar refreshes),
+3. raises the Fixel Terminal window (`osascript`, by the window id recorded at startup).
 
 ### Double-tap detection
 
-Right Option (`Key.alt_r`) press→release counts as a tap only if no other key was pressed in between, which prevents Option-chords such as ⌥→ from triggering. Two taps within **400 ms** trigger the event. A third tap within the window does not re-trigger. Detection is a pure function over `(key, event, timestamp)` so it can be unit-tested.
+Right Option (keycode 61, device flag `0x40`) press→release counts as a tap only if no other key was pressed in between, which prevents Option-chords such as ⌥→ from triggering. Two taps within **400 ms** trigger the event. A third tap within the window does not re-trigger. Detection is a pure function over `(key, event, timestamp)` so it can be unit-tested.
 
 ## 4. Model protocol
 
@@ -116,8 +119,8 @@ cases_fts  -- FTS5 over (key, question, answer), content='cases'
 ```
 
 - Saved after each completed answer; follow-ups update the same row.
-- Screenshots are persisted to `~/.fixel/shots/<case_id>-<n>.png`.
-- **Recall:** after the header is parsed and the key is non-empty, run an FTS5 `MATCH` on the key, excluding the current case. The top hit is shown only if its `bm25()` score is ≤ `recall_threshold` (default `-1.0`; lower is a stronger match in FTS5; tunable in `config.toml`). It is shown as `📁 Seen before: <date> — <key>` (⌃O shows that case's answer).
+- Screenshots are persisted to `~/.fixel/shots/<uuid>.png` at capture time; the case row stores their paths.
+- **Recall:** after each answer, if the case key is non-empty, FTS5 retrieves up to 10 candidates whose `key` shares any token, excluding the current case. Fixel then scores each candidate by Jaccard overlap of key tokens and shows the best one only if the score is ≥ `recall_threshold` (default `0.6`, tunable in `config.toml`). (FTS5 `bm25()` is ~0 on a small corpus, so it can't be the gate.) It is shown as `📁 Seen before: <date> — <key>` (⌃O shows that case's answer).
 - `/cases <query>` lists the top 10 matches.
 - On a DB error, memory is disabled for the session with a yellow warning. Answers still work.
 
@@ -141,7 +144,7 @@ cases_fts  -- FTS5 over (key, question, answer), content='cases'
 
 | Condition | Behavior |
 |---|---|
-| Accessibility not granted (`AXIsProcessTrusted()` false via `ApplicationServices`) | Red banner at startup with the System Settings path; the hotkey is marked inactive |
+| Input Monitoring not granted (`CGPreflightListenEventAccess()` false, or the event tap can't be created) | Red banner at startup with the System Settings path; the hotkey is marked inactive |
 | Screen Recording not granted (`CGPreflightScreenCaptureAccess()` false) | Red banner at startup; captures are refused rather than sending wallpaper-only images |
 | Esc during selection | No-op |
 | Missing or invalid API key | "Run `fixel setup`" message; the app stays alive |
