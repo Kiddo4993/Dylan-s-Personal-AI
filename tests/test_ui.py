@@ -27,3 +27,24 @@ async def test_stream_answer_parses_and_renders(console):
     assert body == "**Cause:** gremlins" and raw.startswith("MODE:")
     out = console.file.getvalue()
     assert "ERROR" in out and "gremlins" in out and "MODE:" not in out
+
+
+def test_messages_keep_square_brackets(console):
+    ui = UI(console)
+    ui.error("Fix [models] in ~/.fixel/config.toml")
+    ui.warn("content[1] is bad")
+    ui.info("[x] done")
+    out = console.file.getvalue()
+    assert "[models]" in out and "content[1]" in out and "[x] done" in out
+
+
+def test_case_text_keeps_square_brackets(console):
+    from datetime import datetime
+
+    from fixel.casefile import CaseRecord
+
+    ui = UI(console)
+    record = CaseRecord(1, datetime(2026, 9, 12), "error", "KeyError: cfg[bold]", "q", "a", [])
+    ui.recall_line(record)
+    ui.show_cases([record])
+    assert console.file.getvalue().count("cfg[bold]") == 2

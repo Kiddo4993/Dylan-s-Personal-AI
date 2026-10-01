@@ -38,3 +38,18 @@ async def test_run_command_captures_output(tmp_path):
 async def test_run_command_times_out(tmp_path):
     code, out = await actions.run_command("sleep 5", timeout=0.2, cwd=tmp_path)
     assert code is None and "stopped after" in out
+
+
+async def test_cancelling_run_command_kills_the_process(tmp_path):
+    import asyncio
+
+    marker = tmp_path / "ran-to-completion"
+    task = asyncio.ensure_future(actions.run_command(f"sleep 0.6; touch '{marker}'", cwd=tmp_path))
+    await asyncio.sleep(0.2)
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+    await asyncio.sleep(0.8)
+    assert not marker.exists()

@@ -136,3 +136,34 @@ async def test_commands(tmp_path, console):
     assert await app.handle_command("/quit") is False
     assert await app.handle_command("/nope") is True
     assert "Unknown command" in console.file.getvalue()
+
+
+async def test_unexpected_provider_error_keeps_fixel_alive_and_tray(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR], error=RuntimeError("weird SDK failure"), error_after=1))
+    await app.capture_once()
+    assert await app.ask("why?") == "why?"
+    assert len(app.session.tray) == 1 and app.session.case.turns == []
+    assert "weird SDK failure" in console.file.getvalue()
+
+
+async def test_ctrl_c_stops_a_running_command_not_fixel(tmp_path, console, monkeypatch):
+    import asyncio
+    import os
+    import signal
+
+    async def slow_run(cmd, **kwargs):
+        await asyncio.sleep(5)
+        return 0, "finished"
+
+    monkeypatch.setattr(app_module.actions, "run_command", slow_run)
+    app = make_app(tmp_path, console, FakeProvider([ERR]))
+    await app.capture_once()
+    await app.ask("")
+
+    async def accept(question):
+        return True
+
+    app.ui.confirm = accept
+    asyncio.get_running_loop().call_later(0.1, os.kill, os.getpid(), signal.SIGINT)
+    await asyncio.wait_for(app.handle_action("run"), 2)
+    assert "Stopped" in console.file.getvalue()

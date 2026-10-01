@@ -21,7 +21,7 @@ def _check_anthropic(key: str, model: str) -> str:
         return "[red]✖ Anthropic rejected this key.[/]"
     except anthropic.NotFoundError:
         ids = ", ".join(m.id for m in client.models.list(limit=20))
-        return f"[yellow]⚠ Key works, but '{model}' wasn't found. Available: {ids}. Update [models] in ~/.fixel/config.toml.[/]"
+        return f"[yellow]⚠ Key works, but '{model}' wasn't found. Available: {ids}. Update the models section of ~/.fixel/config.toml.[/]"
     except anthropic.APIConnectionError:
         return "[yellow]⚠ Couldn't reach Anthropic to check the key (it's saved anyway).[/]"
 
@@ -35,7 +35,7 @@ def _check_gemini(key: str, model: str) -> str:
         return f"[green]✔ Key works and {model} is available.[/]"
     except errors.APIError as e:
         if e.code == 404:
-            return f"[yellow]⚠ Key works, but '{model}' wasn't found. Update [models] in ~/.fixel/config.toml.[/]"
+            return f"[yellow]⚠ Key works, but '{model}' wasn't found. Update the models section of ~/.fixel/config.toml.[/]"
         return f"[red]✖ Google rejected this key ({e.code}).[/]"
     except Exception:
         return "[yellow]⚠ Couldn't reach Google to check the key (it's saved anyway).[/]"

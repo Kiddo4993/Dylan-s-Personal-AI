@@ -149,35 +149,46 @@ class FixelApp:
         self.session.build_user_turn(text)
         self._sync_status()
         system = build_system(self.session.learn)
-        task = asyncio.ensure_future(self.ui.stream_answer(self.provider.stream(list(self.session.case.turns), system)))
-        loop = asyncio.get_running_loop()
         try:
-            loop.add_signal_handler(signal.SIGINT, task.cancel)  # ⌃C stops the answer, not Fixel
-            interruptible = True
-        except (NotImplementedError, RuntimeError, ValueError):
-            interruptible = False
-        try:
-            header, raw, body = await task
-        except asyncio.CancelledError:
-            if not task.cancelled():
-                raise
+            finished, answer = await self._interruptible(
+                self.ui.stream_answer(self.provider.stream(list(self.session.case.turns), system))
+            )
+        except Exception as e:  # ProviderError is expected; anything else is an SDK surprise
+            self.session.rollback()
+            self._sync_status()
+            message = str(e) if isinstance(e, ProviderError) else f"Unexpected error from {self.provider.name}: {e!r}"
+            hint = " Your screenshots are still in the tray. Press Enter to retry." if self.session.tray else ""
+            self.ui.error(f"{message}{hint}")
+            return text
+        if not finished:
             self.session.rollback()
             self._sync_status()
             self.ui.warn("Stopped.")
             return text
-        except ProviderError as e:
-            self.session.rollback()
-            self._sync_status()
-            hint = " Your screenshots are still in the tray. Press Enter to retry." if self.session.tray else ""
-            self.ui.error(f"{e}{hint}")
-            return text
-        finally:
-            if interruptible:
-                loop.remove_signal_handler(signal.SIGINT)
+        header, raw, body = answer
         self.session.record_answer(header, raw, body)
         self._remember()
         self.ui.action_bar()
         return ""
+
+    async def _interruptible(self, awaitable) -> tuple[bool, object]:
+        """Await `awaitable` so that ⌃C cancels just it, not Fixel. Returns (finished, result)."""
+        task = asyncio.ensure_future(awaitable)
+        loop = asyncio.get_running_loop()
+        try:
+            loop.add_signal_handler(signal.SIGINT, task.cancel)
+            installed = True
+        except (NotImplementedError, RuntimeError, ValueError):
+            installed = False
+        try:
+            return True, await task
+        except asyncio.CancelledError:
+            if asyncio.current_task().cancelling():  # Fixel itself is shutting down
+                raise
+            return False, None
+        finally:
+            if installed:
+                loop.remove_signal_handler(signal.SIGINT)
 
     def _remember(self) -> None:
         case = self.session.case
@@ -223,8 +234,11 @@ class FixelApp:
             if not await self.ui.confirm("Type y to run it (anything else cancels): "):
                 self.ui.info("Cancelled. Nothing ran.")
                 return
-            code, output = await actions.run_command(command)
-            self.ui.show_output(code, output)
+            finished, result = await self._interruptible(actions.run_command(command))
+            if not finished:
+                self.ui.warn("Stopped the command.")
+                return
+            self.ui.show_output(*result)
         elif name == "save":
             if not case.answer:
                 self.ui.warn("Nothing to save yet.")

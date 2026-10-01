@@ -13,6 +13,7 @@ from prompt_toolkit.patch_stdout import patch_stdout
 from rich.console import Console, Group
 from rich.live import Live
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.syntax import Syntax
@@ -135,13 +136,13 @@ class UI:
         self.console.rule(f"[bold cyan]Fixel[/] · {model} · learn: {'on' if learn else 'off'}")
 
     def info(self, msg: str) -> None:
-        self.console.print(f"[cyan]›[/] {msg}")
+        self.console.print(f"[cyan]›[/] {escape(msg)}")
 
     def warn(self, msg: str) -> None:
-        self.console.print(f"[yellow]⚠ {msg}[/]")
+        self.console.print(f"[yellow]⚠ {escape(msg)}[/]")
 
     def error(self, msg: str) -> None:
-        self.console.print(f"[bold red]✖ {msg}[/]")
+        self.console.print(f"[bold red]✖ {escape(msg)}[/]")
 
     def help(self) -> None:
         self.console.print(Markdown(HELP))
@@ -169,7 +170,7 @@ class UI:
         return header, raw, body
 
     def recall_line(self, record) -> None:
-        self.console.print(f"[magenta]📁 Seen before: {record.created_at:%b %d} — {record.key}  (⌃O to open)[/]")
+        self.console.print(f"[magenta]📁 Seen before: {record.created_at:%b %d} — {escape(record.key)}  (⌃O to open)[/]")
 
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
@@ -189,5 +190,5 @@ class UI:
 
     def show_cases(self, records) -> None:
         for r in records:
-            self.console.print(f"[bold]#{r.id}[/] {r.created_at:%Y-%m-%d} [dim]{r.mode}[/] {r.key or r.question[:70]}")
+            self.console.print(f"[bold]#{r.id}[/] {r.created_at:%Y-%m-%d} [dim]{r.mode}[/] {escape(r.key or r.question[:70])}")
         self.console.print("[dim]Open one with /open <number>[/]")

@@ -31,6 +31,9 @@ async def run_command(cmd: str, *, timeout: float = 60.0, cwd: Path | None = Non
         os.killpg(proc.pid, signal.SIGKILL)
         out, _ = await proc.communicate()
         return None, out.decode(errors="replace") + f"\n[stopped after {timeout:g}s]"
+    except asyncio.CancelledError:  # ⌃C: don't leave the command running in the background
+        os.killpg(proc.pid, signal.SIGKILL)
+        raise
     return proc.returncode, out.decode(errors="replace")
 
 
