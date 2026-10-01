@@ -167,3 +167,16 @@ async def test_ctrl_c_stops_a_running_command_not_fixel(tmp_path, console, monke
     asyncio.get_running_loop().call_later(0.1, os.kill, os.getpid(), signal.SIGINT)
     await asyncio.wait_for(app.handle_action("run"), 2)
     assert "Stopped" in console.file.getvalue()
+
+
+async def test_startup_banner_comes_before_model_errors(tmp_path, console, monkeypatch):
+    def no_key(alias, cfg):
+        raise ProviderError("No Anthropic API key yet. Run `fixel setup`.")
+
+    monkeypatch.setattr(app_module.permissions, "input_monitoring_granted", lambda: False)
+    monkeypatch.setattr(app_module.permissions, "screen_recording_granted", lambda: True)
+    app = FixelApp(Config(home=tmp_path), UI(console), provider_factory=no_key, casefile=CaseFile(tmp_path / "c.db"))
+    await app.startup()
+    out = console.file.getvalue()
+    assert out.index("Fixel") < out.index("No Anthropic API key")
+    assert "claude-sonnet-5-5" in out

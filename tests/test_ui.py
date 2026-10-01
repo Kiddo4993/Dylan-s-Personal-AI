@@ -48,3 +48,10 @@ def test_case_text_keeps_square_brackets(console):
     ui.recall_line(record)
     ui.show_cases([record])
     assert console.file.getvalue().count("cfg[bold]") == 2
+
+
+def test_help_puts_screenshot_and_ask_on_separate_lines(console):
+    UI(console).help()
+    lines = [line.strip() for line in console.file.getvalue().splitlines()]
+    assert any(line.startswith("Screenshot:") for line in lines)
+    assert any(line.startswith("Ask:") for line in lines)

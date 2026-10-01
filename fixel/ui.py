@@ -40,6 +40,7 @@ ACTION_KEYS = (
 HELP = """\
 **Screenshot:** double-tap **Right Option ⌥**, then drag over anything. Shots wait in the tray; \
 double-tap again to add more (up to 5).
+
 **Ask:** press **Enter**, or type a question first. Typing after an answer asks a follow-up.
 
 | Key | Does |

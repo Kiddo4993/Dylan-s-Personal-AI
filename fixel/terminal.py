@@ -19,9 +19,25 @@ def launch_command() -> str:
     return f"clear; FIXEL_INSIDE=1 exec {shlex.quote(sys.executable)} -m fixel"
 
 
+def launch_script() -> str:
+    """AppleScript that runs Fixel in Terminal.app. If Terminal isn't running yet, it opens
+    with its own startup window, so run Fixel in that window instead of adding a second one."""
+    command = applescript_string(launch_command())
+    return (
+        'tell application "Terminal"\n'
+        "  if it is running then\n"
+        f"    do script {command}\n"
+        "  else\n"
+        "    activate\n"
+        f"    do script {command} in window 1\n"
+        "  end if\n"
+        "  activate\n"
+        "end tell"
+    )
+
+
 def open_in_terminal_app() -> bool:
-    script = f'tell application "Terminal"\n  activate\n  do script {applescript_string(launch_command())}\nend tell'
-    return subprocess.run(["osascript", "-e", script], capture_output=True).returncode == 0
+    return subprocess.run(["osascript", "-e", launch_script()], capture_output=True).returncode == 0
 
 
 def set_title(title: str = WINDOW_TITLE) -> None:

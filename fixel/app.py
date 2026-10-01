@@ -84,12 +84,16 @@ class FixelApp:
                 "Screen & System Audio Recording, then reopen it."
             )
 
-    async def run(self) -> None:
+    async def startup(self) -> None:
+        alias = self.cfg.default_model
+        self.ui.banner(self.cfg.models.get(alias, alias), self.session.learn)
         self._open_casefile()
-        self.select_model(self.cfg.default_model)
-        self.ui.banner(self.provider.name if self.provider else "no model", self.session.learn)
+        self.select_model(alias)
         self._start_hotkey()
         self.ui.info("Double-tap Right Option ⌥ to screenshot. /help for keys.")
+
+    async def run(self) -> None:
+        await self.startup()
         capture_task = asyncio.create_task(self._capture_worker())
         pending = ""
         try:
