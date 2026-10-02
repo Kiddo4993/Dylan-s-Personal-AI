@@ -64,3 +64,121 @@ def test_gemini_config_disables_automatic_function_calling():
     config = make_config("sys")
     assert config.system_instruction == "sys"
     assert config.automatic_function_calling.disable is True
+
+
+# ---- faster answers: thinking levels and busy fallback
+
+class _Chunk:
+    def __init__(self, text):
+        self.text = text
+
+
+class FakeGeminiClient:
+    """Stands in for genai.Client: per-model scripts of chunks, or an error code to raise."""
+
+    def __init__(self, scripts):
+        self.scripts = scripts  # model -> list of str chunks, or int error code, or (chunks, code)
+        self.calls = []
+        self.aio = self
+        self.models = self
+
+    async def generate_content_stream(self, *, model, contents, config):
+        from google.genai import errors
+
+        self.calls.append((model, config))
+        script = self.scripts[model]
+
+        def busy(code):
+            return errors.ServerError(code, {"error": {"code": code, "message": "busy"}}) if code >= 500 else errors.ClientError(code, {"error": {"code": code, "message": "slow down"}})
+
+        if isinstance(script, int):
+            raise busy(script)
+
+        async def chunks():
+            texts, code = script if isinstance(script, tuple) else (script, None)
+            for text in texts:
+                yield _Chunk(text)
+            if code:
+                raise busy(code)
+
+        return chunks()
+
+
+async def collect(provider, **kwargs):
+    return "".join([c async for c in provider.stream([Turn("user", "q")], "sys", **kwargs)])
+
+
+def test_gemini_thinking_levels():
+    from google.genai import types
+
+    from fixel.brain.gemini import make_config
+
+    assert make_config("s", "gemini-3.6-flash").thinking_config.thinking_level == types.ThinkingLevel.LOW
+    assert make_config("s", "gemini-3.6-flash", deep=True).thinking_config.thinking_level == types.ThinkingLevel.HIGH
+    assert make_config("s", "gemini-2.5-flash").thinking_config is None  # older models don't take levels
+
+
+async def test_gemini_deep_flag_reaches_the_request():
+    from google.genai import types
+
+    client = FakeGeminiClient({"gemini-3.6-flash": ["ok"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", client=client)
+    await collect(provider, deep=True)
+    assert client.calls[0][1].thinking_config.thinking_level == types.ThinkingLevel.HIGH
+
+
+async def test_gemini_falls_back_when_busy():
+    client = FakeGeminiClient({"gemini-3.6-flash": 503, "gemini-3.5-flash": ["MODE: general\n", "---\nhi"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client, retry_delay=0)
+    assert await collect(provider) == "MODE: general\n---\nhi"
+    assert [model for model, _ in client.calls] == ["gemini-3.6-flash", "gemini-3.6-flash", "gemini-3.5-flash"]
+    assert provider.last_model == "gemini-3.5-flash"
+
+
+async def test_gemini_rate_limit_also_falls_back():
+    client = FakeGeminiClient({"gemini-3.6-flash": 429, "gemini-3.5-flash": ["ok"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client, retry_delay=0)
+    assert await collect(provider) == "ok"
+
+
+async def test_gemini_all_busy_gives_friendly_error():
+    client = FakeGeminiClient({"gemini-3.6-flash": 503, "gemini-3.5-flash": 503})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client, retry_delay=0)
+    with pytest.raises(ProviderError, match="busy"):
+        await collect(provider)
+
+
+async def test_gemini_never_switches_models_mid_answer():
+    client = FakeGeminiClient({"gemini-3.6-flash": (["half an ans"], 503), "gemini-3.5-flash": ["other"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client, retry_delay=0)
+    with pytest.raises(ProviderError):
+        await collect(provider)
+    assert [model for model, _ in client.calls] == ["gemini-3.6-flash"]
+
+
+async def test_gemini_answering_model_resets_each_question():
+    client = FakeGeminiClient({"gemini-3.6-flash": ["ok"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client)
+    await collect(provider)
+    assert provider.last_model == "gemini-3.6-flash"
+
+
+def test_claude_quick_vs_deep_thinking():
+    provider = ClaudeProvider("k", "claude-sonnet-5-5", thinking=False)
+    turns = [Turn("user", "q")]
+    assert "thinking" not in provider.build_params(turns, "sys", deep=False)
+    assert provider.build_params(turns, "sys", deep=True)["thinking"] == {"type": "adaptive"}
+    assert ClaudeProvider("k", "m", thinking=True).build_params(turns, "sys", deep=False)["thinking"] == {"type": "adaptive"}
+    assert provider.last_model == "claude-sonnet-5-5"
+
+
+async def test_fake_provider_records_deep_and_answering_model():
+    provider = FakeProvider(answered_by="backup")
+    await collect(provider, deep=True)
+    assert provider.calls[0][2] is True and provider.last_model == "backup"
+
+
+def test_make_provider_passes_gemini_fallbacks(tmp_path, monkeypatch):
+    monkeypatch.setattr(brain, "get_api_key", lambda vendor: "k")
+    provider = make_provider("gemini", Config(home=tmp_path))
+    assert provider.fallbacks == ["gemini-3.5-flash", "gemini-3.5-flash-lite"]

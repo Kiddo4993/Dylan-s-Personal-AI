@@ -55,3 +55,30 @@ def test_help_puts_screenshot_and_ask_on_separate_lines(console):
     lines = [line.strip() for line in console.file.getvalue().splitlines()]
     assert any(line.startswith("Screenshot:") for line in lines)
     assert any(line.startswith("Ask:") for line in lines)
+
+
+def test_thinking_spinner_shows_elapsed_and_stop_hint(console):
+    from fixel.ui import Thinking
+
+    console.print(Thinking())
+    assert "thinking… 0s · ⌃C to stop" in console.file.getvalue()
+
+
+def test_answer_footer_shows_model_time_and_fallback(console):
+    ui = UI(console)
+    ui.answer_footer("gemini-3.5-flash", "gemini-3.6-flash", 1.84, deep=True)
+    out = console.file.getvalue()
+    assert "gemini-3.6-flash was busy, answered by gemini-3.5-flash" in out
+    assert "gemini-3.5-flash · 1.8s · deep thinking" in out
+
+
+def test_answer_footer_without_fallback(console):
+    UI(console).answer_footer("gemini-3.6-flash", "gemini-3.6-flash", 2.0, deep=False)
+    out = console.file.getvalue()
+    assert "busy" not in out and "gemini-3.6-flash · 2.0s" in out and "deep" not in out
+
+
+def test_help_and_toolbar_mention_think_harder(console):
+    UI(console).help()
+    assert "⌃T" in console.file.getvalue()
+    assert "⌃T deeper" in toolbar_text(Status())

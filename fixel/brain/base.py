@@ -22,6 +22,9 @@ class ProviderError(Exception):
 
 
 class Provider(Protocol):
-    name: str
+    name: str  # the configured model
+    last_model: str  # the model that actually produced the latest answer (may be a busy-fallback)
 
-    def stream(self, turns: list[Turn], system: str) -> AsyncIterator[str]: ...
+    def stream(self, turns: list[Turn], system: str, *, deep: bool = False) -> AsyncIterator[str]:
+        """Stream reply text. `deep` asks for maximum thinking (⌃T "think harder")."""
+        ...

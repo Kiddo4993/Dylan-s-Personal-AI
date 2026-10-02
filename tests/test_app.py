@@ -38,8 +38,9 @@ async def test_capture_then_ask_sends_screenshot_and_saves_case(tmp_path, consol
     await app.capture_once()
     assert app.ui.status.tray == 1
     assert await app.ask("") == ""
-    turns, system = provider.calls[0]
+    turns, system, deep = provider.calls[0]
     assert turns[0].images == [b"PNG"] and "MODE:" in system
+    assert deep is False  # normal questions get quick answers
     assert app.session.case.header.mode == "error"
     assert app.casefile.get(app.session.case.case_id).answer.startswith("**Cause:**")
     assert app.ui.status.tray == 0
@@ -180,3 +181,41 @@ async def test_startup_banner_comes_before_model_errors(tmp_path, console, monke
     out = console.file.getvalue()
     assert out.index("Fixel") < out.index("No Anthropic API key")
     assert "claude-sonnet-5-5" in out
+
+
+ERR2 = "MODE: error\nKEY: ModuleNotFoundError: No module named 'numpy'\n---\n**Cause:** deeper look.\n"
+
+
+async def test_think_harder_reasks_same_question_with_deep_thinking(tmp_path, console):
+    provider = FakeProvider([ERR, ERR2])
+    app = make_app(tmp_path, console, provider)
+    await app.capture_once()
+    await app.ask("why?")
+    await app.handle_action("deeper")
+    turns, _, deep = provider.calls[1]
+    assert deep is True and [t.role for t in turns] == ["user"]
+    assert [t.role for t in app.session.case.turns] == ["user", "assistant"]
+    assert app.session.case.answer == "**Cause:** deeper look.\n"
+    assert "deep thinking" in console.file.getvalue()
+
+
+async def test_think_harder_failure_keeps_the_first_answer(tmp_path, console):
+    provider = FakeProvider([ERR])
+    app = make_app(tmp_path, console, provider)
+    await app.ask("why?")
+    provider.error = ProviderError("Google's Gemini models are all busy right now.")
+    await app.handle_action("deeper")
+    assert len(app.session.case.turns) == 2 and app.session.case.answer.startswith("**Cause:** wrong venv")
+    assert "all busy" in console.file.getvalue()
+
+
+async def test_think_harder_needs_a_question_first(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    await app.handle_action("deeper")
+    assert "Ask something first" in console.file.getvalue()
+
+
+async def test_footer_reports_busy_fallback(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR], answered_by="backup-model"))
+    await app.ask("why?")
+    assert "fake was busy, answered by backup-model" in console.file.getvalue()

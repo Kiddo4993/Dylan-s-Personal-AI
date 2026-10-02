@@ -17,16 +17,18 @@ class FakeProvider:
         chunk: int = 7,
         error: Exception | None = None,
         error_after: int = 0,
+        answered_by: str = "fake",
     ) -> None:
         self.name = "fake"
+        self.last_model = answered_by
         self.replies = list(replies or [])
         self.chunk = chunk
         self.error = error
         self.error_after = error_after  # chunks to yield before raising `error`
-        self.calls: list[tuple[list[Turn], str]] = []
+        self.calls: list[tuple[list[Turn], str, bool]] = []
 
-    async def stream(self, turns: list[Turn], system: str) -> AsyncIterator[str]:
-        self.calls.append((list(turns), system))
+    async def stream(self, turns: list[Turn], system: str, *, deep: bool = False) -> AsyncIterator[str]:
+        self.calls.append((list(turns), system, deep))
         reply = self.replies.pop(0) if self.replies else DEFAULT_REPLY
         for sent, start in enumerate(range(0, len(reply), self.chunk)):
             if self.error is not None and sent >= self.error_after:

@@ -36,25 +36,30 @@ class ClaudeProvider:
         model: str,
         *,
         max_tokens: int = 16000,
-        thinking: bool = True,
+        thinking: bool = False,
         client: anthropic.AsyncAnthropic | None = None,
     ) -> None:
         self.name = model
         self.model = model
+        self.last_model = model
         self.max_tokens = max_tokens
         self.thinking = thinking
         # The SDK already retries 429 / 5xx / connection errors twice with backoff.
         self._client = client or anthropic.AsyncAnthropic(api_key=api_key, max_retries=2)
 
-    async def stream(self, turns: list[Turn], system: str) -> AsyncIterator[str]:
+    def build_params(self, turns: list[Turn], system: str, *, deep: bool = False) -> dict:
         params: dict = {
             "model": self.model,
             "max_tokens": self.max_tokens,
             "system": [{"type": "text", "text": system}],
             "messages": to_messages(turns),
         }
-        if self.thinking:
+        if deep or self.thinking:  # quick answers skip thinking unless config says always think
             params["thinking"] = {"type": "adaptive"}
+        return params
+
+    async def stream(self, turns: list[Turn], system: str, *, deep: bool = False) -> AsyncIterator[str]:
+        params = self.build_params(turns, system, deep=deep)
         try:
             async with self._client.messages.stream(**params) as stream:
                 async for text in stream.text_stream:

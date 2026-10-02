@@ -20,7 +20,7 @@ def make_provider(alias: str, cfg: Config) -> Provider:
     if vendor == "gemini":
         from .gemini import GeminiProvider
 
-        return GeminiProvider(key, model)
+        return GeminiProvider(key, model, fallbacks=[m for m in cfg.gemini_fallbacks if m != model])
     from .claude import ClaudeProvider
 
     return ClaudeProvider(key, model, max_tokens=cfg.max_tokens, thinking=cfg.thinking)

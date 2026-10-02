@@ -39,6 +39,7 @@ class Session:
     follow_up: bool = False  # attach the next tray to the current case instead of starting a new one
     learn: bool = False
     _undo: _Undo | None = field(default=None, repr=False)
+    _retracted: tuple[Turn, str] | None = field(default=None, repr=False)
 
     def add_shot(self, path: Path) -> bool:
         if len(self.tray) >= MAX_TRAY:
@@ -81,9 +82,27 @@ class Session:
         self.follow_up = undo.follow_up
         self._undo = None
 
+    def retract_answer(self) -> bool:
+        """Take back the latest answer so its question can be re-asked (⌃T). False if there's none."""
+        turns = self.case.turns
+        if not turns or turns[-1].role != "assistant":
+            return False
+        self._retracted = (turns.pop(), self.case.answer)
+        return True
+
+    def restore_answer(self) -> None:
+        """Put a retracted answer back (the re-ask failed or was stopped)."""
+        if self._retracted is None:
+            return
+        turn, answer = self._retracted
+        self.case.turns.append(turn)
+        self.case.answer = answer
+        self._retracted = None
+
     def record_answer(self, header: Header, raw: str, body: str) -> None:
         previous = self.case.header
         self.case.header = header if previous is None else Header(header.mode, header.key or previous.key)
         self.case.turns.append(Turn("assistant", raw))
         self.case.answer = body
         self._undo = None
+        self._retracted = None

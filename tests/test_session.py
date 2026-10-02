@@ -99,3 +99,30 @@ def test_new_case_clears(tmp_path):
     s.follow_up = True
     s.new_case()
     assert s.tray == [] and s.follow_up is False and s.case.turns == []
+
+
+def test_retract_and_restore_answer():
+    s = Session()
+    s.build_user_turn("q")
+    answer(s, "error", "Boom")
+    assert s.retract_answer() is True
+    assert [t.role for t in s.case.turns] == ["user"]
+    s.restore_answer()
+    assert [t.role for t in s.case.turns] == ["user", "assistant"] and s.case.answer == "body"
+
+
+def test_retract_needs_an_answer():
+    s = Session()
+    assert s.retract_answer() is False
+    s.build_user_turn("q")
+    assert s.retract_answer() is False
+
+
+def test_new_answer_after_retract_replaces_old_one():
+    s = Session()
+    s.build_user_turn("q")
+    answer(s)
+    s.retract_answer()
+    s.record_answer(Header("error", ""), "raw2", "deeper body")
+    s.restore_answer()  # no-op once a new answer is recorded
+    assert len(s.case.turns) == 2 and s.case.answer == "deeper body"

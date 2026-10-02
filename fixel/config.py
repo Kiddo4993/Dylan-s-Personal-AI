@@ -18,8 +18,9 @@ default_model = "sonnet"        # sonnet | opus | gemini
 notes_dir = "~/Fixel Notes"
 recall_threshold = 0.6          # 0-1: how similar a past case must be to show "Seen before"
 double_tap_window = 0.4         # seconds allowed between Right Option taps
-thinking = true                 # Claude adaptive thinking: better answers, slightly slower
+thinking = false                # Claude: think on every answer (slower). ⌃T always thinks harder.
 max_tokens = 16000
+gemini_fallbacks = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]   # tried in order when Gemini is busy
 
 [models]
 sonnet = "claude-sonnet-5-5"
@@ -39,8 +40,9 @@ class Config:
     notes_dir: Path = field(default_factory=lambda: Path.home() / "Fixel Notes")
     recall_threshold: float = 0.6
     double_tap_window: float = 0.4
-    thinking: bool = True
+    thinking: bool = False
     max_tokens: int = 16000
+    gemini_fallbacks: list[str] = field(default_factory=lambda: ["gemini-3.5-flash", "gemini-3.5-flash-lite"])
     models: dict[str, str] = field(default_factory=_default_models)
 
     @property
@@ -64,7 +66,7 @@ def load_config(home: Path | None = None) -> Config:
     cfg = Config(home=home or fixel_home())
     if cfg.config_path.exists():
         data = tomllib.loads(cfg.config_path.read_text())
-        for name in ("default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens"):
+        for name in ("default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "gemini_fallbacks"):
             if name in data:
                 setattr(cfg, name, data[name])
         if "notes_dir" in data:

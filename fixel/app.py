@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import signal
 import sqlite3
+import time
 import uuid
 from pathlib import Path
 from typing import Awaitable, Callable
@@ -152,28 +153,50 @@ class FixelApp:
             return text
         self.session.build_user_turn(text)
         self._sync_status()
+        answer = await self._stream_answer(deep=False)
+        if answer is None:
+            self.session.rollback()
+            self._sync_status()
+            if self.session.tray:
+                self.ui.info("Your screenshots are still in the tray. Press Enter to retry.")
+            return text
+        self._finish(answer)
+        return ""
+
+    async def think_harder(self) -> None:
+        """⌃T: re-answer the latest question with deep thinking, replacing the quick answer."""
+        if self.provider is None or not self.session.retract_answer():
+            self.ui.warn("Ask something first, then press ⌃T to re-answer it with deep thinking.")
+            return
+        self.ui.info("Thinking harder…")
+        answer = await self._stream_answer(deep=True)
+        if answer is None:
+            self.session.restore_answer()
+            return
+        self._finish(answer)
+
+    async def _stream_answer(self, *, deep: bool):
+        """Stream an answer to the current case. Returns (header, raw, body), or None after reporting why not."""
         system = build_system(self.session.learn)
+        started = time.monotonic()
         try:
             finished, answer = await self._interruptible(
-                self.ui.stream_answer(self.provider.stream(list(self.session.case.turns), system))
+                self.ui.stream_answer(self.provider.stream(list(self.session.case.turns), system, deep=deep))
             )
         except Exception as e:  # ProviderError is expected; anything else is an SDK surprise
-            self.session.rollback()
-            self._sync_status()
             message = str(e) if isinstance(e, ProviderError) else f"Unexpected error from {self.provider.name}: {e!r}"
-            hint = " Your screenshots are still in the tray. Press Enter to retry." if self.session.tray else ""
-            self.ui.error(f"{message}{hint}")
-            return text
+            self.ui.error(message)
+            return None
         if not finished:
-            self.session.rollback()
-            self._sync_status()
             self.ui.warn("Stopped.")
-            return text
-        header, raw, body = answer
-        self.session.record_answer(header, raw, body)
+            return None
+        self.ui.answer_footer(self.provider.last_model, self.provider.name, time.monotonic() - started, deep)
+        return answer
+
+    def _finish(self, answer) -> None:
+        self.session.record_answer(*answer)
         self._remember()
         self.ui.action_bar()
-        return ""
 
     async def _interruptible(self, awaitable) -> tuple[bool, object]:
         """Await `awaitable` so that ⌃C cancels just it, not Fixel. Returns (finished, result)."""
@@ -222,7 +245,9 @@ class FixelApp:
 
     async def handle_action(self, name: str) -> None:
         case = self.session.case
-        if name == "copy":
+        if name == "deeper":
+            await self.think_harder()
+        elif name == "copy":
             fix = primary_fix(case.answer) if case.answer else None
             if not fix:
                 self.ui.warn("Nothing to copy yet.")

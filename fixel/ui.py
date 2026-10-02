@@ -29,6 +29,7 @@ BADGES = {
     "general": "bold black on white",
 }
 ACTION_KEYS = (
+    ("c-t", "deeper"),
     ("c-y", "copy"),
     ("c-r", "run"),
     ("c-s", "save"),
@@ -45,6 +46,7 @@ double-tap again to add more (up to 5).
 
 | Key | Does |
 |---|---|
+| ⌃T | think harder: re-answer the last question with deep thinking |
 | ⌃Y | copy the fix / answer / draft |
 | ⌃R | run the suggested shell command (asks first) |
 | ⌃S | save this case as a note in ~/Fixel Notes |
@@ -86,7 +88,20 @@ def toolbar_text(status: Status) -> str:
         follow = "on" if status.follow_up else "off"
         return f"📸 {status.tray} shot{plural} in tray · ⏎ ask · ⌥⌥ add more · ⌃F follow-up: {follow}"
     hotkey = "⌥⌥ screenshot" if status.hotkey_ok else "⚠ hotkey off (run fixel setup)"
-    return f"{hotkey} · ⌃Y copy · ⌃R run · ⌃S save · ⌃L learn · ⌃N new · /help"
+    return f"{hotkey} · ⌃T deeper · ⌃Y copy · ⌃R run · ⌃S save · ⌃N new · /help"
+
+
+class Thinking:
+    """Spinner shown until the first words arrive, counting the seconds."""
+
+    def __init__(self) -> None:
+        self.started = time.monotonic()
+        self.spinner = Spinner("dots")
+
+    def __rich_console__(self, console, options):
+        seconds = time.monotonic() - self.started
+        self.spinner.text = Text(f" thinking… {seconds:.0f}s · ⌃C to stop", style="dim")
+        yield self.spinner
 
 
 class UI:
@@ -151,7 +166,7 @@ class UI:
     @staticmethod
     def answer_view(header: Header | None, body: str):
         if header is None:
-            return Spinner("dots", text=" thinking…")
+            return Thinking()
         title = Text(f" {header.mode.upper()} ", style=BADGES.get(header.mode, BADGES["general"]))
         if header.key:
             title.append(f"  {header.key}", style="dim")
@@ -160,7 +175,7 @@ class UI:
     async def stream_answer(self, chunks: AsyncIterator[str]) -> tuple[Header, str, str]:
         """Render a streaming reply live, hiding the header. Returns (header, raw reply, body)."""
         raw = ""
-        with Live(self.answer_view(None, ""), console=self.console, refresh_per_second=12, vertical_overflow="visible") as live:
+        with Live(Thinking(), console=self.console, refresh_per_second=12, vertical_overflow="visible") as live:
             async for chunk in chunks:
                 raw += chunk
                 parsed = split_header(raw)
@@ -173,9 +188,15 @@ class UI:
     def recall_line(self, record) -> None:
         self.console.print(f"[magenta]📁 Seen before: {record.created_at:%b %d} — {escape(record.key)}  (⌃O to open)[/]")
 
+    def answer_footer(self, model: str, configured: str, seconds: float, deep: bool) -> None:
+        if model != configured:
+            self.console.print(f"[yellow]⚡ {escape(configured)} was busy, answered by {escape(model)}[/]")
+        detail = " · deep thinking" if deep else ""
+        self.console.print(f"[dim]{escape(model)} · {seconds:.1f}s{detail}[/]")
+
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
-        self.console.print("[dim]⌃Y copy · ⌃R run · ⌃S save note · ⌃L learn · ⌃N new[/]")
+        self.console.print("[dim]⌃T think harder · ⌃Y copy · ⌃R run · ⌃S save note · ⌃L learn · ⌃N new[/]")
 
     def show_command(self, cmd: str) -> None:
         self.console.print(Panel(Syntax(cmd, "bash", theme="monokai", word_wrap=True), title="Run this?", border_style="yellow"))

@@ -50,6 +50,7 @@ fixel --here    # runs in the current terminal instead
 |---|---|
 | ⌥⌥ (Right Option twice) | screenshot a region into the tray |
 | Enter | ask (type a question first, or just press Enter) |
+| ⌃T | think harder: re-answer the last question with deep thinking |
 | ⌃Y / ⌃R / ⌃S | copy fix / run command / save note |
 | ⌃L | learn mode |
 | ⌃F | attach the tray to the current case instead of starting a new one |
@@ -61,7 +62,7 @@ Commands: `/model sonnet|opus|gemini`, `/answer`, `/cases <words>`, `/open <n>`,
 
 ## Customize
 
-- `~/.fixel/config.toml` sets the default model, model IDs, the double-tap speed, the notes folder, and how strict "Seen before" matching is.
+- `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy (`gemini_fallbacks`), the double-tap speed, the notes folder, and how strict "Seen before" matching is.
 - `fixel/prompts.py` holds Fixel's personality and answer formats. Edit it to change how Fixel talks.
 
 ## Privacy & cost
