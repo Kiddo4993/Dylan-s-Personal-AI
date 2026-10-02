@@ -52,6 +52,11 @@ Answer directly in at most 6 sentences.
 - If unsure, say what you're unsure about and the fastest way to check.
 - Say so plainly if a fix deletes data or changes system settings.
 - This renders as terminal Markdown: short lines, sparing bold, no HTML, no tables wider than 80 columns.
+
+## Memory
+A question may begin with a [Fixel memory] block of this user's past cases that look similar. If a past case \
+matches, build on it (prefer fixes the user confirmed worked, and say briefly that this came up before). \
+If it doesn't match, ignore it. Never quote the block itself.
 """
 
 LEARN_ADDENDUM = """
@@ -65,5 +70,11 @@ The user wants to learn, not be handed the answer.
 """
 
 
-def build_system(learn: bool) -> str:
-    return BASE_SYSTEM + LEARN_ADDENDUM if learn else BASE_SYSTEM
+def build_system(learn: bool, notes: list[str] | tuple[str, ...] = ()) -> str:
+    system = BASE_SYSTEM
+    if notes:
+        bullets = "\n".join(f"- {note}" for note in notes)
+        system += f"\n## About this user (they told you these; use them when relevant)\n{bullets}\n"
+    if learn:
+        system += LEARN_ADDENDUM
+    return system

@@ -13,7 +13,7 @@ Fixel recognizes what you captured and answers in the format that fits:
 
 **What sets it apart**
 
-- **Case file:** every solved problem is saved on your Mac. Hit the same error again and Fixel says *"Seen before: Sep 12"* (⌃O opens it).
+- **Gets smarter with use:** Fixel reads each screenshot on your Mac, finds similar problems you've solved before, and hands those fixes to the AI. Press ⌃G when a fix works so Fixel prefers it next time, and use `/remember <fact>` to teach it about you (your classes, tools, setup).
 - **One-key actions:** ⌃Y copies the fix, ⌃R runs the suggested command (only after you type `y`), ⌃S saves a Markdown note.
 - **Stack shots:** double-tap again before asking to add more screenshots (error + code + config) to one question.
 - **Learn mode:** ⌃L switches to hints and guiding questions instead of answers; `/answer` reveals the full solution.
@@ -54,15 +54,16 @@ fixel --here    # runs in the current terminal instead
 | ⌃Y / ⌃R / ⌃S | copy fix / run command / save note |
 | ⌃L | learn mode |
 | ⌃F | attach the tray to the current case instead of starting a new one |
-| ⌃O | open the "Seen before" case |
+| ⌃G | that worked: mark this fix as proven |
+| ⌃O | open the past case Fixel used |
 | ⌃N | new case |
 | ⌃C | stop an answer that's streaming |
 
-Commands: `/model sonnet|opus|gemini`, `/answer`, `/cases <words>`, `/open <n>`, `/help`, `/quit`.
+Commands: `/model sonnet|opus|gemini`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/quit`.
 
 ## Customize
 
-- `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy (`gemini_fallbacks`), the double-tap speed, the notes folder, and how strict "Seen before" matching is.
+- `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy (`gemini_fallbacks`), the double-tap speed, the notes folder, and how closely a past problem must match before Fixel reuses it (`recall_threshold`).
 - `fixel/prompts.py` holds Fixel's personality and answer formats. Edit it to change how Fixel talks.
 
 ## Privacy & cost

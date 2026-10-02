@@ -16,7 +16,7 @@ DEFAULT_CONFIG_TOML = """\
 # Fixel settings. Delete a line to fall back to its default.
 default_model = "sonnet"        # sonnet | opus | gemini
 notes_dir = "~/Fixel Notes"
-recall_threshold = 0.6          # 0-1: how similar a past case must be to show "Seen before"
+recall_threshold = 0.6          # 0-1: how much of a past problem must be on screen for Fixel to reuse it
 double_tap_window = 0.4         # seconds allowed between Right Option taps
 thinking = false                # Claude: think on every answer (slower). ⌃T always thinks harder.
 max_tokens = 16000
@@ -56,6 +56,10 @@ class Config:
     @property
     def casefile_path(self) -> Path:
         return self.home / "casefile.db"
+
+    @property
+    def about_me_path(self) -> Path:
+        return self.home / "about-me.md"
 
 
 def fixel_home() -> Path:

@@ -16,6 +16,8 @@ from .capture import capture_region
 from .casefile import CaseFile, CaseRecord
 from .config import Config
 from .hotkey import HotkeyListener
+from .memory import AboutMe, past_cases_context
+from .ocr import recognize_text_async
 from .parse import primary_fix, runnable_command
 from .prompts import build_system
 from .session import MAX_TRAY, Session
@@ -32,6 +34,7 @@ class FixelApp:
         capture: Callable[[Path], Awaitable[bytes | None]] = capture_region,
         raise_window: Callable[[], Awaitable[None]] | None = None,
         casefile: CaseFile | None = None,
+        ocr: Callable[[Path], Awaitable[str]] = recognize_text_async,
     ) -> None:
         self.cfg = cfg
         self.ui = ui
@@ -39,10 +42,12 @@ class FixelApp:
         self.provider: Provider | None = None
         self.model_alias = cfg.default_model
         self.casefile = casefile
-        self.last_recall: CaseRecord | None = None
+        self.about_me = AboutMe(cfg.about_me_path)
+        self.last_recall: CaseRecord | None = None  # the past case used for the current one (⌃O)
         self.screen_ok = True
         self._provider_factory = provider_factory
         self._capture = capture
+        self._ocr = ocr
         self._raise_window = raise_window
         self._hotkeys: asyncio.Queue[None] = asyncio.Queue()
 
@@ -134,11 +139,12 @@ class FixelApp:
             status.flash_msg(f"Tray is full ({MAX_TRAY} shots). Press Enter to ask.")
             return
         path = self.cfg.shots_dir / f"{uuid.uuid4().hex}.png"
-        if await self._capture(path):
-            self.session.add_shot(path)
+        captured = bool(await self._capture(path)) and self.session.add_shot(path)
         self._sync_status()
         if self._raise_window is not None:
             await self._raise_window()
+        if captured:  # read the screen after Fixel is in front; it's ready by the time you press Enter
+            self.session.set_shot_text(path, await self._ocr(path))
 
     def _sync_status(self) -> None:
         self.ui.status.tray = len(self.session.tray)
@@ -151,7 +157,8 @@ class FixelApp:
         if self.provider is None:
             self.ui.error("No model is ready. Run `fixel setup`, then `/model sonnet`.")
             return text
-        self.session.build_user_turn(text)
+        context = self._recall_context(text) if self.session.starts_new_case() else ""
+        self.session.build_user_turn(text, context=context)
         self._sync_status()
         answer = await self._stream_answer(deep=False)
         if answer is None:
@@ -177,7 +184,7 @@ class FixelApp:
 
     async def _stream_answer(self, *, deep: bool):
         """Stream an answer to the current case. Returns (header, raw, body), or None after reporting why not."""
-        system = build_system(self.session.learn)
+        system = build_system(self.session.learn, self.about_me.notes())
         started = time.monotonic()
         try:
             finished, answer = await self._interruptible(
@@ -217,29 +224,33 @@ class FixelApp:
             if installed:
                 loop.remove_signal_handler(signal.SIGINT)
 
+    def _recall_context(self, text: str) -> str:
+        """For a new case: find similar past cases, show them, and return the memory block for the model."""
+        records: list[CaseRecord] = []
+        query = f"{text}\n{self.session.tray_text()}".strip()
+        if self.casefile is not None and query:
+            try:
+                records = self.casefile.similar(query, threshold=self.cfg.recall_threshold)
+            except sqlite3.Error as e:
+                self.ui.warn(f"Case file error ({e}); memory is off this session.")
+                self.casefile = None
+        self.last_recall = records[0] if records else None
+        if records:
+            self.ui.memory_line(records, len(self.about_me.notes()))
+        return past_cases_context(records)
+
     def _remember(self) -> None:
         case = self.session.case
         if self.casefile is None or case.header is None:
             return
-        first_answer = len(case.turns) == 2
         try:
             case.case_id = self.casefile.save(
-                case_id=case.case_id, mode=case.header.mode, key=case.header.key,
-                question=case.question, answer=case.answer, shot_paths=case.shots,
+                case_id=case.case_id, mode=case.header.mode, key=case.header.key, question=case.question,
+                answer=case.answer, shot_paths=case.shots, screen_text=case.screen_text,
             )
-            record = None
-            if first_answer and case.header.key:
-                record = self.casefile.recall(
-                    case.header.key, exclude_id=case.case_id, threshold=self.cfg.recall_threshold
-                )
         except sqlite3.Error as e:
             self.ui.warn(f"Case file error ({e}); memory is off this session.")
             self.casefile = None
-            return
-        if first_answer:
-            self.last_recall = record
-        if record is not None:
-            self.ui.recall_line(record)
 
     # ---- keys and commands
 
@@ -247,6 +258,12 @@ class FixelApp:
         case = self.session.case
         if name == "deeper":
             await self.think_harder()
+        elif name == "worked":
+            if case.case_id is None or self.casefile is None:
+                self.ui.warn("Nothing to mark yet. Press ⌃G after a fix works.")
+                return
+            self.casefile.mark_worked(case.case_id)
+            self.ui.info("Marked as worked ✅ Fixel will reach for this fix first next time.")
         elif name == "copy":
             fix = primary_fix(case.answer) if case.answer else None
             if not fix:
@@ -323,6 +340,24 @@ class FixelApp:
                 self.ui.warn("Nothing to answer yet.")
             else:
                 await self.ask("/answer")
+        elif command == "/remember":
+            if not arg:
+                self.ui.warn("Usage: /remember <a fact about you, e.g. I use Python 3.12 and zsh>")
+            else:
+                self.about_me.add(arg)
+                self.ui.info(f"Remembered. Fixel will tell the AI this with every question. ({self.cfg.about_me_path})")
+        elif command == "/memory":
+            notes = self.about_me.notes()
+            if not notes:
+                self.ui.info("No notes yet. Add one with /remember <fact>.")
+            for number, note in enumerate(notes, 1):
+                self.ui.info(f"{number}. {note}")
+        elif command == "/forget":
+            removed = self.about_me.forget(int(arg)) if arg.isdigit() else None
+            if removed is None:
+                self.ui.warn("Usage: /forget <number from /memory>")
+            else:
+                self.ui.info(f"Forgot: {removed}")
         elif command == "/cases":
             if self.casefile is None:
                 self.ui.warn("Memory is off this session.")

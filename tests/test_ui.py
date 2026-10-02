@@ -45,7 +45,7 @@ def test_case_text_keeps_square_brackets(console):
 
     ui = UI(console)
     record = CaseRecord(1, datetime(2026, 9, 12), "error", "KeyError: cfg[bold]", "q", "a", [])
-    ui.recall_line(record)
+    ui.memory_line([record], 0)
     ui.show_cases([record])
     assert console.file.getvalue().count("cfg[bold]") == 2
 

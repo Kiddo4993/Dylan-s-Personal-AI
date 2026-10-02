@@ -126,3 +126,43 @@ def test_new_answer_after_retract_replaces_old_one():
     s.record_answer(Header("error", ""), "raw2", "deeper body")
     s.restore_answer()  # no-op once a new answer is recorded
     assert len(s.case.turns) == 2 and s.case.answer == "deeper body"
+
+
+def test_screen_text_follows_shots_into_the_case(tmp_path):
+    s = Session()
+    a = shot(tmp_path, "a")
+    s.add_shot(a)
+    s.set_shot_text(a, "Error one")
+    s.add_shot(shot(tmp_path, "b"), "Error two")
+    assert s.tray_text() == "Error one\nError two"
+    s.build_user_turn("why?")
+    assert s.case.screen_text == "Error one\nError two"
+
+
+def test_memory_context_goes_to_the_model_not_the_question(tmp_path):
+    s = Session()
+    s.add_shot(shot(tmp_path))
+    turn = s.build_user_turn("why?", context="[Fixel memory]\npast stuff\n[End of Fixel memory]")
+    assert turn.text.startswith("[Fixel memory]") and turn.text.endswith("why?")
+    assert s.case.question == "why?"
+
+
+def test_starts_new_case(tmp_path):
+    s = Session()
+    assert s.starts_new_case() is True
+    s.add_shot(shot(tmp_path))
+    s.build_user_turn("q")
+    answer(s)
+    assert s.starts_new_case() is False  # typed follow-up
+    s.add_shot(shot(tmp_path, "c"))
+    assert s.starts_new_case() is True
+    s.follow_up = True
+    assert s.starts_new_case() is False
+
+
+def test_rollback_restores_screen_text(tmp_path):
+    s = Session()
+    s.add_shot(shot(tmp_path), "Boom")
+    s.build_user_turn("q")
+    s.rollback()
+    assert s.case.screen_text == "" and s.tray_text() == "Boom"

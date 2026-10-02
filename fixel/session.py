@@ -20,6 +20,7 @@ class Case:
     question: str = ""  # the first question, used for notes and the case file
     answer: str = ""  # the latest answer body (header removed)
     case_id: int | None = None
+    screen_text: str = ""  # text recognized in this case's screenshots
 
 
 @dataclass
@@ -28,6 +29,7 @@ class _Undo:
     turns: int
     shots: int
     question: str
+    screen_text: str
     tray: list[Path]
     follow_up: bool
 
@@ -40,29 +42,49 @@ class Session:
     learn: bool = False
     _undo: _Undo | None = field(default=None, repr=False)
     _retracted: tuple[Turn, str] | None = field(default=None, repr=False)
+    _shot_text: dict[Path, str] = field(default_factory=dict, repr=False)
 
-    def add_shot(self, path: Path) -> bool:
+    def add_shot(self, path: Path, text: str = "") -> bool:
         if len(self.tray) >= MAX_TRAY:
             return False
         self.tray.append(path)
+        self._shot_text[path] = text
         return True
+
+    def set_shot_text(self, path: Path, text: str) -> None:
+        """Attach recognized text to a shot (recognition finishes after the shot lands in the tray)."""
+        self._shot_text[path] = text
+
+    def tray_text(self) -> str:
+        return "\n".join(text for path in self.tray if (text := self._shot_text.get(path)))
+
+    def starts_new_case(self) -> bool:
+        """Would sending now start a new case (as opposed to following up on the current one)?"""
+        return not self.case.turns or (bool(self.tray) and not self.follow_up)
 
     def new_case(self) -> None:
         self.case = Case()
         self.tray = []
         self.follow_up = False
 
-    def build_user_turn(self, text: str) -> Turn:
+    def build_user_turn(self, text: str, context: str = "") -> Turn:
         """Move the tray + text into the conversation. A tray sent after an answer
-        starts a new case unless follow-up is on; text alone always follows up."""
+        starts a new case unless follow-up is on; text alone always follows up.
+        `context` (Fixel memory) goes to the model ahead of the question but isn't part of it."""
         case = self.case
-        self._undo = _Undo(case, len(case.turns), len(case.shots), case.question, list(self.tray), self.follow_up)
+        self._undo = _Undo(
+            case, len(case.turns), len(case.shots), case.question, case.screen_text, list(self.tray), self.follow_up
+        )
         if self.tray and case.turns and not self.follow_up:
             self.case = Case()
         question = text.strip() or DEFAULT_QUESTION
-        turn = Turn("user", question, [path.read_bytes() for path in self.tray])
+        sent = f"{context}\n\n{question}" if context else question
+        turn = Turn("user", sent, [path.read_bytes() for path in self.tray])
         self.case.turns.append(turn)
         self.case.shots.extend(self.tray)
+        new_text = self.tray_text()
+        if new_text:
+            self.case.screen_text = f"{self.case.screen_text}\n{new_text}".strip()
         if not self.case.question:
             self.case.question = question
         self.tray = []
@@ -78,6 +100,7 @@ class Session:
         del undo.case.turns[undo.turns :]
         del undo.case.shots[undo.shots :]
         undo.case.question = undo.question
+        undo.case.screen_text = undo.screen_text
         self.tray = undo.tray
         self.follow_up = undo.follow_up
         self._undo = None

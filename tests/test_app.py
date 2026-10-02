@@ -12,8 +12,11 @@ ERR = (
 )
 
 
-def make_app(tmp_path, console, provider, shot_bytes=b"PNG"):
+def make_app(tmp_path, console, provider, shot_bytes=b"PNG", screen_text=""):
     cfg = Config(home=tmp_path, notes_dir=tmp_path / "notes")
+
+    async def fake_ocr(path):
+        return screen_text
 
     async def fake_capture(dest):
         if shot_bytes is None:
@@ -26,6 +29,7 @@ def make_app(tmp_path, console, provider, shot_bytes=b"PNG"):
         cfg, UI(console),
         provider_factory=lambda alias, cfg: provider,
         capture=fake_capture,
+        ocr=fake_ocr,
         casefile=CaseFile(tmp_path / "c.db"),
     )
     app.select_model("sonnet")
@@ -68,15 +72,71 @@ async def test_provider_failure_mid_stream_restores_tray_and_text(tmp_path, cons
     assert "still in the tray" in console.file.getvalue()
 
 
-async def test_repeat_problem_shows_seen_before(tmp_path, console):
-    app = make_app(tmp_path, console, FakeProvider([ERR, ERR]))
+NUMPY_SCREEN = "$ python3 app.py\nModuleNotFoundError: No module named 'numpy'"
+
+
+async def test_past_fix_is_sent_to_the_model_for_a_repeat_problem(tmp_path, console):
+    provider = FakeProvider([ERR, ERR])
+    app = make_app(tmp_path, console, provider, screen_text=NUMPY_SCREEN)
     await app.capture_once()
     await app.ask("")
     first_id = app.session.case.case_id
+    assert "[Fixel memory" not in provider.calls[0][0][-1].text  # nothing to remember yet
     await app.capture_once()
     await app.ask("")
+    sent = provider.calls[1][0][-1].text
+    assert sent.startswith("[Fixel memory") and "pip install numpy" in sent and sent.endswith("Figure this out.")
+    assert app.session.case.question == "Figure this out."
     assert app.last_recall.id == first_id
-    assert "Seen before" in console.file.getvalue()
+    assert "🧠" in console.file.getvalue()
+
+
+async def test_follow_ups_do_not_repeat_memory(tmp_path, console):
+    provider = FakeProvider([ERR, ERR, ERR])
+    app = make_app(tmp_path, console, provider, screen_text=NUMPY_SCREEN)
+    await app.capture_once()
+    await app.ask("")
+    await app.capture_once()
+    await app.ask("")
+    await app.ask("and why?")
+    assert provider.calls[2][0][-1].text == "and why?"
+
+
+async def test_screen_text_is_saved_with_the_case(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR]), screen_text=NUMPY_SCREEN)
+    await app.capture_once()
+    await app.ask("")
+    assert app.casefile.get(app.session.case.case_id).screen_text == NUMPY_SCREEN
+
+
+async def test_mark_worked(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR]))
+    await app.handle_action("worked")
+    assert "Nothing to mark yet" in console.file.getvalue()
+    await app.ask("why?")
+    await app.handle_action("worked")
+    assert app.casefile.get(app.session.case.case_id).worked is True
+
+
+async def test_about_me_notes_reach_the_model(tmp_path, console):
+    provider = FakeProvider()
+    app = make_app(tmp_path, console, provider)
+    await app.handle_command("/remember I use Python 3.12 and zsh")
+    await app.handle_command("/remember I'm in AP Calc BC")
+    await app.handle_command("/memory")
+    assert "1. I use Python 3.12 and zsh" in console.file.getvalue()
+    await app.ask("hi")
+    assert "- I use Python 3.12 and zsh" in provider.calls[0][1]
+    await app.handle_command("/forget 1")
+    await app.ask("again")
+    assert "Python 3.12" not in provider.calls[1][1] and "AP Calc BC" in provider.calls[1][1]
+
+
+async def test_forget_needs_a_valid_number(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    await app.handle_command("/forget 3")
+    await app.handle_command("/forget")
+    assert console.file.getvalue().count("Usage: /forget") == 2
 
 
 async def test_copy_action_copies_fix(tmp_path, console, monkeypatch):

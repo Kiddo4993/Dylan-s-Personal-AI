@@ -30,6 +30,7 @@ BADGES = {
 }
 ACTION_KEYS = (
     ("c-t", "deeper"),
+    ("c-g", "worked"),
     ("c-y", "copy"),
     ("c-r", "run"),
     ("c-s", "save"),
@@ -47,15 +48,17 @@ double-tap again to add more (up to 5).
 | Key | Does |
 |---|---|
 | ⌃T | think harder: re-answer the last question with deep thinking |
+| ⌃G | that worked: Fixel reaches for this fix first next time |
 | ⌃Y | copy the fix / answer / draft |
 | ⌃R | run the suggested shell command (asks first) |
 | ⌃S | save this case as a note in ~/Fixel Notes |
 | ⌃L | learn mode: hints instead of answers (`/answer` reveals) |
 | ⌃F | attach the tray to the current case instead of starting a new one |
-| ⌃O | open the "Seen before" case |
+| ⌃O | open the past case Fixel used |
 | ⌃N | new case |
 
-**Commands:** `/model sonnet|opus|gemini` · `/answer` · `/cases <words>` · `/open <number>` · `/help` · `/quit`
+**Commands:** `/model sonnet|opus|gemini` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
+`/cases <words>` · `/open <number>` · `/help` · `/quit`
 """
 
 
@@ -185,8 +188,15 @@ class UI:
             live.update(self.answer_view(header, body))
         return header, raw, body
 
-    def recall_line(self, record) -> None:
-        self.console.print(f"[magenta]📁 Seen before: {record.created_at:%b %d} — {escape(record.key)}  (⌃O to open)[/]")
+    def memory_line(self, records, notes: int) -> None:
+        """Show which past cases Fixel is handing the model before it answers."""
+        for record in records:
+            proven = " ✅" if record.worked else ""
+            self.console.print(
+                f"[magenta]🧠 Using your past case from {record.created_at:%b %d}{proven}: {escape(record.key or record.question)}[/]"
+            )
+        about = f" · plus {notes} note{'' if notes == 1 else 's'} about you" if notes else ""
+        self.console.print(f"[dim]   ⌃O opens it{about}[/]")
 
     def answer_footer(self, model: str, configured: str, seconds: float, deep: bool) -> None:
         if model != configured:
@@ -196,7 +206,7 @@ class UI:
 
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
-        self.console.print("[dim]⌃T think harder · ⌃Y copy · ⌃R run · ⌃S save note · ⌃L learn · ⌃N new[/]")
+        self.console.print("[dim]⌃T think harder · ⌃G it worked · ⌃Y copy · ⌃R run · ⌃S save note · ⌃N new[/]")
 
     def show_command(self, cmd: str) -> None:
         self.console.print(Panel(Syntax(cmd, "bash", theme="monokai", word_wrap=True), title="Run this?", border_style="yellow"))
