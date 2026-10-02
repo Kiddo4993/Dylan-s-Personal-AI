@@ -63,7 +63,7 @@ Commands: `/model sonnet|opus|gemini`, `/answer`, `/remember <fact>`, `/memory`,
 
 ## Customize
 
-- `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy (`gemini_fallbacks`), the double-tap speed, the notes folder, and how closely a past problem must match before Fixel reuses it (`recall_threshold`).
+- `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy or slow (`gemini_fallbacks`, `slow_model_seconds`), the double-tap speed, the notes folder, and how closely a past problem must match before Fixel reuses it (`recall_threshold`).
 - `fixel/prompts.py` holds Fixel's personality and answer formats. Edit it to change how Fixel talks.
 
 ## Privacy & cost

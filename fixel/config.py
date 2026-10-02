@@ -21,6 +21,7 @@ double_tap_window = 0.4         # seconds allowed between Right Option taps
 thinking = false                # Claude: think on every answer (slower). ⌃T always thinks harder.
 max_tokens = 16000
 gemini_fallbacks = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]   # tried in order when Gemini is busy
+slow_model_seconds = 20         # no words after this long? try the next Gemini model (⌃T allows 3x)
 
 [models]
 sonnet = "claude-sonnet-5-5"
@@ -43,6 +44,7 @@ class Config:
     thinking: bool = False
     max_tokens: int = 16000
     gemini_fallbacks: list[str] = field(default_factory=lambda: ["gemini-3.5-flash", "gemini-3.5-flash-lite"])
+    slow_model_seconds: float = 20.0
     models: dict[str, str] = field(default_factory=_default_models)
 
     @property
@@ -70,7 +72,7 @@ def load_config(home: Path | None = None) -> Config:
     cfg = Config(home=home or fixel_home())
     if cfg.config_path.exists():
         data = tomllib.loads(cfg.config_path.read_text())
-        for name in ("default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "gemini_fallbacks"):
+        for name in ("default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "gemini_fallbacks", "slow_model_seconds"):
             if name in data:
                 setattr(cfg, name, data[name])
         if "notes_dir" in data:

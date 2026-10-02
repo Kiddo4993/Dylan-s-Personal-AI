@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 import fixel.brain as brain
@@ -94,6 +96,14 @@ class FakeGeminiClient:
         if isinstance(script, int):
             raise busy(script)
 
+        if isinstance(script, dict):  # {"sleep": seconds, "text": [...]}: a slow model
+            async def slow_chunks():
+                await asyncio.sleep(script["sleep"])
+                for text in script["text"]:
+                    yield _Chunk(text)
+
+            return slow_chunks()
+
         async def chunks():
             texts, code = script if isinstance(script, tuple) else (script, None)
             for text in texts:
@@ -182,3 +192,28 @@ def test_make_provider_passes_gemini_fallbacks(tmp_path, monkeypatch):
     monkeypatch.setattr(brain, "get_api_key", lambda vendor: "k")
     provider = make_provider("gemini", Config(home=tmp_path))
     assert provider.fallbacks == ["gemini-3.5-flash", "gemini-3.5-flash-lite"]
+
+
+async def test_gemini_moves_on_from_a_model_that_is_too_slow_to_start():
+    client = FakeGeminiClient({"gemini-3.6-flash": {"sleep": 5, "text": ["late"]}, "gemini-3.5-flash": ["fast"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client, slow_after=0.1)
+    assert await collect(provider) == "fast"
+    assert [model for model, _ in client.calls] == ["gemini-3.6-flash", "gemini-3.5-flash"]  # no retry of a slow model
+    assert provider.last_model == "gemini-3.5-flash"
+
+
+async def test_gemini_never_cuts_off_the_last_model():
+    client = FakeGeminiClient({"gemini-3.6-flash": {"sleep": 0.3, "text": ["slow but here"]}})
+    provider = GeminiProvider("k", "gemini-3.6-flash", client=client, slow_after=0.1)
+    assert await collect(provider) == "slow but here"
+
+
+async def test_gemini_deep_thinking_gets_more_patience():
+    client = FakeGeminiClient({"gemini-3.6-flash": {"sleep": 0.2, "text": ["deep"]}, "gemini-3.5-flash": ["fast"]})
+    provider = GeminiProvider("k", "gemini-3.6-flash", fallbacks=["gemini-3.5-flash"], client=client, slow_after=0.1)
+    assert await collect(provider, deep=True) == "deep"
+
+
+def test_make_provider_passes_slow_model_setting(tmp_path, monkeypatch):
+    monkeypatch.setattr(brain, "get_api_key", lambda vendor: "k")
+    assert make_provider("gemini", Config(home=tmp_path)).slow_after == 20
