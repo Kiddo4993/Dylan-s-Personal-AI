@@ -24,12 +24,12 @@ max_tokens = 16000
 [models]
 sonnet = "claude-sonnet-5-5"
 opus = "claude-opus-5-5"
-gemini = "gemini-2.5-flash"
+gemini = "gemini-3.6-flash"
 """
 
 
 def _default_models() -> dict[str, str]:
-    return {"sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5", "gemini": "gemini-2.5-flash"}
+    return {"sonnet": "claude-sonnet-5-5", "opus": "claude-opus-5-5", "gemini": "gemini-3.6-flash"}
 
 
 @dataclass

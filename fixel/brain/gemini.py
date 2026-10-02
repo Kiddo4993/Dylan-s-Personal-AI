@@ -25,6 +25,17 @@ def to_contents(turns: list[Turn]) -> list:
     ]
 
 
+def make_config(system: str):
+    from google.genai import types
+
+    # Fixel passes no tools, so turn off automatic function calling; otherwise the SDK
+    # logs a warning into Fixel's window on every request.
+    return types.GenerateContentConfig(
+        system_instruction=system,
+        automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
+    )
+
+
 class GeminiProvider:
     def __init__(self, api_key: str, model: str, *, client=None) -> None:
         from google import genai
@@ -34,9 +45,9 @@ class GeminiProvider:
         self._client = client or genai.Client(api_key=api_key)
 
     async def stream(self, turns: list[Turn], system: str) -> AsyncIterator[str]:
-        from google.genai import errors, types
+        from google.genai import errors
 
-        config = types.GenerateContentConfig(system_instruction=system)
+        config = make_config(system)
         contents = to_contents(turns)
         for attempt in range(3):
             yielded = False

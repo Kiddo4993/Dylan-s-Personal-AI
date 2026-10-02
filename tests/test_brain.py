@@ -55,3 +55,12 @@ def test_make_provider_picks_vendor(tmp_path, monkeypatch):
     opus = make_provider("opus", cfg)
     assert isinstance(opus, ClaudeProvider) and opus.name == "claude-opus-5-5"
     assert isinstance(make_provider("gemini", cfg), GeminiProvider)
+
+
+def test_gemini_config_disables_automatic_function_calling():
+    # Fixel uses no tools; leaving AFC on makes the SDK print a warning into Fixel's window on every question.
+    from fixel.brain.gemini import make_config
+
+    config = make_config("sys")
+    assert config.system_instruction == "sys"
+    assert config.automatic_function_calling.disable is True
