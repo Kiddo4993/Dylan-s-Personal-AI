@@ -279,3 +279,34 @@ async def test_footer_reports_busy_fallback(tmp_path, console):
     app = make_app(tmp_path, console, FakeProvider([ERR], answered_by="backup-model"))
     await app.ask("why?")
     assert "fake was busy, answered by backup-model" in console.file.getvalue()
+
+
+async def test_startup_draws_the_homepage_with_memory(tmp_path, console, monkeypatch):
+    monkeypatch.setattr(app_module.permissions, "input_monitoring_granted", lambda: False)
+    monkeypatch.setattr(app_module.permissions, "screen_recording_granted", lambda: True)
+    casefile = CaseFile(tmp_path / "c.db")
+    first = casefile.save(case_id=None, mode="error", key="No module named pandas", question="q", answer="a", shot_paths=[])
+    casefile.save(case_id=None, mode="math", key="Integrate x sin x", question="q", answer="a", shot_paths=[])
+    casefile.mark_worked(first)
+    cfg = Config(home=tmp_path, name="Dylan")
+    app = FixelApp(cfg, UI(console), provider_factory=lambda alias, cfg: FakeProvider(), casefile=casefile)
+    app.about_me.add("I use zsh")
+    await app.startup()
+    out = " ".join(console.file.getvalue().split())  # content, wherever lines happen to wrap
+    assert "Welcome back, Dylan" in out
+    assert "2 solved, 1 confirmed working" in out and "1 note about you" in out
+    assert "No module named pandas" in out
+    assert "✗ ⌥⌥ hotkey" in out and "Input Monitoring" in out
+    assert "✓ screenshots" in out and "✓ API key" in out
+
+
+async def test_homepage_recent_skips_repeats_of_the_same_problem(tmp_path, console, monkeypatch):
+    monkeypatch.setattr(app_module.permissions, "input_monitoring_granted", lambda: False)
+    monkeypatch.setattr(app_module.permissions, "screen_recording_granted", lambda: True)
+    casefile = CaseFile(tmp_path / "c.db")
+    for key in ("Integrate x sin x", "No module named pandas", "No module named pandas", "No module named pandas"):
+        casefile.save(case_id=None, mode="error", key=key, question="q", answer="a", shot_paths=[])
+    app = FixelApp(Config(home=tmp_path), UI(console), provider_factory=lambda alias, cfg: FakeProvider(), casefile=casefile)
+    await app.startup()
+    out = console.file.getvalue()
+    assert out.count("No module named pandas") == 1 and "Integrate x sin x" in out

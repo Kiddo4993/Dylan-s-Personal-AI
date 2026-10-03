@@ -85,3 +85,12 @@ def test_upgrades_a_case_file_from_the_first_version(tmp_path):
     assert [r.id for r in cf.similar(SCREEN)] == [1]
     assert save(cf, key="new", screen_text="fresh text") == 2
     assert [r.id for r in cf.search("fresh")] == [2]
+
+
+def test_recent_and_stats(tmp_path):
+    cf = make(tmp_path)
+    assert cf.recent() == [] and cf.stats() == (0, 0)
+    ids = [save(cf, key=f"k{i}") for i in range(4)]
+    cf.mark_worked(ids[0])
+    assert [r.id for r in cf.recent(limit=3)] == [ids[3], ids[2], ids[1]]
+    assert cf.stats() == (4, 1)

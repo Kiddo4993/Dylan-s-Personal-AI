@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import random
 import signal
 import sqlite3
 import time
@@ -15,6 +16,7 @@ from .brain import Provider, ProviderError, make_provider
 from .capture import capture_region
 from .casefile import CaseFile, CaseRecord
 from .config import Config
+from .home import TIPS, Check, HomeInfo, mac_first_name
 from .hotkey import HotkeyListener
 from .memory import AboutMe, past_cases_context
 from .ocr import recognize_text_async
@@ -54,13 +56,19 @@ class FixelApp:
     # ---- startup
 
     def select_model(self, alias: str) -> bool:
+        problem = self._load_model(alias)
+        if problem:
+            self.ui.error(problem)
+        return problem is None
+
+    def _load_model(self, alias: str) -> str | None:
+        """Switch to `alias`. Returns what went wrong, or None on success."""
         try:
             self.provider = self._provider_factory(alias, self.cfg)
         except ProviderError as e:
-            self.ui.error(str(e))
-            return False
+            return str(e)
         self.model_alias = alias
-        return True
+        return None
 
     def _open_casefile(self) -> None:
         if self.casefile is not None:
@@ -70,7 +78,8 @@ class FixelApp:
         except sqlite3.Error as e:
             self.ui.warn(f"Case file unavailable ({e}); memory is off this session.")
 
-    def _start_hotkey(self) -> None:
+    def _start_hotkey(self) -> list[Check]:
+        """Start listening for ⌥⌥ and check screen access. Returns the homepage's readiness checks."""
         loop = asyncio.get_running_loop()
         app_name = permissions.host_app()
         listener = HotkeyListener(
@@ -78,25 +87,44 @@ class FixelApp:
         )
         hotkey_ok = permissions.input_monitoring_granted() and listener.start()
         self.ui.status.hotkey_ok = hotkey_ok
-        if not hotkey_ok:
-            self.ui.error(
-                f"Hotkey is off: allow {app_name} in System Settings → Privacy & Security → Input Monitoring, "
-                "then reopen it. `fixel setup` walks you through it."
-            )
         self.screen_ok = permissions.screen_recording_granted()
-        if not self.screen_ok:
-            self.ui.error(
+        return [
+            Check(
+                "⌥⌥ hotkey", hotkey_ok,
+                f"Hotkey is off: allow {app_name} in System Settings → Privacy & Security → Input Monitoring, "
+                "then reopen it. `fixel setup` walks you through it.",
+            ),
+            Check(
+                "screenshots", self.screen_ok,
                 f"Screenshots are off: allow {app_name} in System Settings → Privacy & Security → "
-                "Screen & System Audio Recording, then reopen it."
-            )
+                "Screen & System Audio Recording, then reopen it.",
+            ),
+        ]
 
     async def startup(self) -> None:
         alias = self.cfg.default_model
-        self.ui.banner(self.cfg.models.get(alias, alias), self.session.learn)
         self._open_casefile()
-        self.select_model(alias)
-        self._start_hotkey()
-        self.ui.info("Double-tap Right Option ⌥ to screenshot. /help for keys.")
+        key_problem = self._load_model(alias)
+        checks = [*self._start_hotkey(), Check("API key", key_problem is None, key_problem or "")]
+        solved, worked, recent = 0, 0, []
+        if self.casefile is not None:
+            try:
+                solved, worked = self.casefile.stats()
+                recent = _distinct(self.casefile.recent(limit=20))[:3]
+            except sqlite3.Error:
+                pass
+        self.ui.home(
+            HomeInfo(
+                name=self.cfg.name or mac_first_name(),
+                model=self.provider.name if self.provider else self.cfg.models.get(alias, alias),
+                checks=checks,
+                solved=solved,
+                worked=worked,
+                notes=len(self.about_me.notes()),
+                recent=recent,
+                tip=random.choice(TIPS),
+            )
+        )
 
     async def run(self) -> None:
         await self.startup()
@@ -378,3 +406,15 @@ class FixelApp:
         else:
             self.ui.warn(f"Unknown command {command}. Try /help.")
         return True
+
+
+def _distinct(records: list[CaseRecord]) -> list[CaseRecord]:
+    """Newest case for each different problem, so repeats don't crowd the homepage."""
+    seen: set[str] = set()
+    unique = []
+    for record in records:
+        problem = (record.key or record.question).strip().lower()
+        if problem not in seen:
+            seen.add(problem)
+            unique.append(record)
+    return unique

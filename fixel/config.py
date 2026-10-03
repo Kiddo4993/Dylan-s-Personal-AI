@@ -14,6 +14,7 @@ ENV_VARS = {"anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY"}
 
 DEFAULT_CONFIG_TOML = """\
 # Fixel settings. Delete a line to fall back to its default.
+# name = "Dylan"                # how the homepage greets you (default: your Mac account's first name)
 default_model = "sonnet"        # sonnet | opus | gemini
 notes_dir = "~/Fixel Notes"
 recall_threshold = 0.6          # 0-1: how much of a past problem must be on screen for Fixel to reuse it
@@ -37,6 +38,7 @@ def _default_models() -> dict[str, str]:
 @dataclass
 class Config:
     home: Path
+    name: str | None = None
     default_model: str = "sonnet"
     notes_dir: Path = field(default_factory=lambda: Path.home() / "Fixel Notes")
     recall_threshold: float = 0.6
@@ -72,7 +74,7 @@ def load_config(home: Path | None = None) -> Config:
     cfg = Config(home=home or fixel_home())
     if cfg.config_path.exists():
         data = tomllib.loads(cfg.config_path.read_text())
-        for name in ("default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "gemini_fallbacks", "slow_model_seconds"):
+        for name in ("name", "default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "gemini_fallbacks", "slow_model_seconds"):
             if name in data:
                 setattr(cfg, name, data[name])
         if "notes_dir" in data:

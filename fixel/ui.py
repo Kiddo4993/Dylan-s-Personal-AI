@@ -19,6 +19,7 @@ from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.text import Text
 
+from .home import HomeInfo, render_home
 from .parse import Header, split_header
 
 BADGES = {
@@ -150,6 +151,9 @@ class UI:
         return reply.strip().lower() in ("y", "yes")
 
     # ---- output
+
+    def home(self, info: HomeInfo) -> None:
+        self.console.print(render_home(info, self.console.width))
 
     def banner(self, model: str, learn: bool) -> None:
         self.console.rule(f"[bold cyan]Fixel[/] · {model} · learn: {'on' if learn else 'off'}")

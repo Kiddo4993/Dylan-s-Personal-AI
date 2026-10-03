@@ -149,6 +149,15 @@ class CaseFile:
         scored.sort(key=lambda item: item[:3], reverse=True)
         return [record for *_, record in scored[:limit]]
 
+    def recent(self, limit: int = 3) -> list[CaseRecord]:
+        rows = self._db.execute(f"SELECT {_COLUMNS} FROM cases ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+        return [record for (cid, *_rest) in rows if (record := self.get(cid)) is not None]
+
+    def stats(self) -> tuple[int, int]:
+        """(cases solved, cases the user confirmed worked)."""
+        total, worked = self._db.execute("SELECT COUNT(*), COALESCE(SUM(worked), 0) FROM cases").fetchone()
+        return total, worked
+
     def search(self, query: str, limit: int = 10) -> list[CaseRecord]:
         words = tokens(query)
         if not words:
