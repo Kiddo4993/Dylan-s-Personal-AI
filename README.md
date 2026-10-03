@@ -18,6 +18,8 @@ Fixel recognizes what you captured and answers in the format that fits:
 - **Stack shots:** double-tap again before asking to add more screenshots (error + code + config) to one question.
 - **Learn mode:** ⌃L switches to hints and guiding questions instead of answers; `/answer` reveals the full solution.
 
+**Meet Pix.** Fixel's mascot is a little face made from screenshot-selection corners. It focuses in when Fixel starts, blinks and glances around while it's thinking (*Squinting at your screenshot…*), cheers when you press ⌃G, and frowns at errors. Set `animations = false` in `~/.fixel/config.toml` to keep it still.
+
 ## Install
 
 ```bash

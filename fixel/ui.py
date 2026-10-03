@@ -15,11 +15,11 @@ from rich.live import Live
 from rich.markdown import Markdown
 from rich.markup import escape
 from rich.panel import Panel
-from rich.spinner import Spinner
 from rich.syntax import Syntax
 from rich.text import Text
 
-from .home import HomeInfo, render_home
+from . import pix
+from .home import PIX_COLOR, HomeInfo, render_home
 from .parse import Header, split_header
 
 BADGES = {
@@ -96,21 +96,28 @@ def toolbar_text(status: Status) -> str:
 
 
 class Thinking:
-    """Spinner shown until the first words arrive, counting the seconds."""
+    """Pix's thinking line, shown until the first words arrive: face, verb, seconds waited."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, images: bool = False, deep: bool = False, animated: bool = True) -> None:
         self.started = time.monotonic()
-        self.spinner = Spinner("dots")
+        self.images = images
+        self.deep = deep
+        self.animated = animated
 
     def __rich_console__(self, console, options):
         seconds = time.monotonic() - self.started
-        self.spinner.text = Text(f" thinking… {seconds:.0f}s · ⌃C to stop", style="dim")
-        yield self.spinner
+        moment = seconds if self.animated else 0.0  # animations off: Pix holds still, verb stays put
+        line = Text()
+        line.append(pix.mini_frame(moment), style=f"bold {PIX_COLOR}")  # colour on Pix only
+        line.append(f" {pix.verb(moment, images=self.images, deep=self.deep)}… ")
+        line.append(f"{seconds:.0f}s · ⌃C to stop", style="dim")
+        yield line
 
 
 class UI:
-    def __init__(self, console: Console | None = None) -> None:
+    def __init__(self, console: Console | None = None, *, animations: bool = True) -> None:
         self.console = console or Console()
+        self.animations = animations
         self.status = Status()
         self._session: PromptSession | None = None
 
@@ -153,7 +160,14 @@ class UI:
     # ---- output
 
     def home(self, info: HomeInfo) -> None:
-        self.console.print(render_home(info, self.console.width))
+        width = self.console.width
+        if self.animations and self.console.is_terminal:
+            # The once-per-launch moment: Pix's corners focus in, then its eyes open.
+            with Live(console=self.console, transient=True, auto_refresh=False) as live:
+                for face in pix.startup_frames():
+                    live.update(render_home(info, width, face=face), refresh=True)
+                    time.sleep(0.07)
+        self.console.print(render_home(info, width))
 
     def banner(self, model: str, learn: bool) -> None:
         self.console.rule(f"[bold cyan]Fixel[/] · {model} · learn: {'on' if learn else 'off'}")
@@ -165,7 +179,11 @@ class UI:
         self.console.print(f"[yellow]⚠ {escape(msg)}[/]")
 
     def error(self, msg: str) -> None:
-        self.console.print(f"[bold red]✖ {escape(msg)}[/]")
+        self.console.print(f"[bold red]{pix.SAD} {escape(msg)}[/]")
+
+    def react(self, msg: str) -> None:
+        """A happy Pix for good news, like a fix that worked."""
+        self.console.print(f"[bold {PIX_COLOR}]{pix.HAPPY}[/] {escape(msg)}")
 
     def help(self) -> None:
         self.console.print(Markdown(HELP))
@@ -173,16 +191,19 @@ class UI:
     @staticmethod
     def answer_view(header: Header | None, body: str):
         if header is None:
-            return Thinking()
+            return Thinking(animated=False)
         title = Text(f" {header.mode.upper()} ", style=BADGES.get(header.mode, BADGES["general"]))
         if header.key:
             title.append(f"  {header.key}", style="dim")
         return Group(title, Text(""), Markdown(body, code_theme="monokai"))
 
-    async def stream_answer(self, chunks: AsyncIterator[str]) -> tuple[Header, str, str]:
+    async def stream_answer(
+        self, chunks: AsyncIterator[str], *, images: bool = False, deep: bool = False
+    ) -> tuple[Header, str, str]:
         """Render a streaming reply live, hiding the header. Returns (header, raw reply, body)."""
         raw = ""
-        with Live(Thinking(), console=self.console, refresh_per_second=12, vertical_overflow="visible") as live:
+        thinking = Thinking(images=images, deep=deep, animated=self.animations)
+        with Live(thinking, console=self.console, refresh_per_second=12, vertical_overflow="visible") as live:
             async for chunk in chunks:
                 raw += chunk
                 parsed = split_header(raw)

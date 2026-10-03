@@ -88,3 +88,9 @@ def test_first_name():
 def test_panel_stays_card_sized_in_wide_windows():
     lines = render(info(), 200).splitlines()
     assert max(len(line) for line in lines) <= 100
+
+
+def test_homepage_shows_pix_above_the_wordmark():
+    out = render(info(), 100)
+    assert "●   ●" in out
+    assert out.index("●   ●") < out.index("█▀▀")

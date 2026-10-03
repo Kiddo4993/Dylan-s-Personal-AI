@@ -57,12 +57,6 @@ def test_help_puts_screenshot_and_ask_on_separate_lines(console):
     assert any(line.startswith("Ask:") for line in lines)
 
 
-def test_thinking_spinner_shows_elapsed_and_stop_hint(console):
-    from fixel.ui import Thinking
-
-    console.print(Thinking())
-    assert "thinking… 0s · ⌃C to stop" in console.file.getvalue()
-
 
 def test_answer_footer_shows_model_time_and_fallback(console):
     ui = UI(console)
@@ -82,3 +76,40 @@ def test_help_and_toolbar_mention_think_harder(console):
     UI(console).help()
     assert "⌃T" in console.file.getvalue()
     assert "⌃T deeper" in toolbar_text(Status())
+
+
+def test_thinking_line_has_pix_verb_timer_and_stop_hint(console):
+    from fixel.ui import Thinking
+
+    console.print(Thinking(images=True))
+    out = console.file.getvalue()
+    assert "⌜•‿•⌝  Squinting at your screenshot… 0s · ⌃C to stop" in out
+
+
+def test_thinking_line_holds_still_when_animations_are_off(console):
+    from fixel.ui import Thinking
+
+    thinking = Thinking(images=True, animated=False)
+    thinking.started -= 10  # 10 seconds in: an animated Pix would have moved on
+    console.print(thinking)
+    assert "⌜•‿•⌝  Squinting at your screenshot… 10s" in console.file.getvalue()
+
+
+def test_errors_get_a_sad_pix_and_reactions_a_happy_one(console):
+    ui = UI(console)
+    ui.error("Can't reach Google.")
+    ui.react("Nice. Marked as worked.")
+    out = console.file.getvalue()
+    assert "⌜•⁀•⌝ Can't reach Google." in out and "⌜^‿^⌝ Nice. Marked as worked." in out
+
+
+def test_pix_never_touches_the_words_and_only_pix_is_colored():
+    from fixel.ui import Thinking
+
+    for tenth in range(80):  # 8 seconds: rests, blinks, zooms, glances
+        thinking = Thinking(images=True)
+        thinking.started -= tenth / 10
+        line = next(iter(thinking.__rich_console__(None, None)))
+        assert line.plain[7] == " ", line.plain  # a gap after Pix's 7-cell face, always
+        assert not line.style  # no colour on the whole line...
+        assert line.spans[0].end == 7  # ...just on Pix's face

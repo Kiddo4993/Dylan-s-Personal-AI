@@ -40,6 +40,7 @@ class FixelApp:
     ) -> None:
         self.cfg = cfg
         self.ui = ui
+        self.ui.animations = cfg.animations
         self.session = Session()
         self.provider: Provider | None = None
         self.model_alias = cfg.default_model
@@ -213,10 +214,12 @@ class FixelApp:
     async def _stream_answer(self, *, deep: bool):
         """Stream an answer to the current case. Returns (header, raw, body), or None after reporting why not."""
         system = build_system(self.session.learn, self.about_me.notes())
+        turns = list(self.session.case.turns)
+        images = any(turn.images for turn in turns)
         started = time.monotonic()
         try:
             finished, answer = await self._interruptible(
-                self.ui.stream_answer(self.provider.stream(list(self.session.case.turns), system, deep=deep))
+                self.ui.stream_answer(self.provider.stream(turns, system, deep=deep), images=images, deep=deep)
             )
         except Exception as e:  # ProviderError is expected; anything else is an SDK surprise
             message = str(e) if isinstance(e, ProviderError) else f"Unexpected error from {self.provider.name}: {e!r}"
@@ -291,7 +294,7 @@ class FixelApp:
                 self.ui.warn("Nothing to mark yet. Press ⌃G after a fix works.")
                 return
             self.casefile.mark_worked(case.case_id)
-            self.ui.info("Marked as worked ✅ Fixel will reach for this fix first next time.")
+            self.ui.react("Nice. Marked as worked. Fixel will reach for this fix first next time.")
         elif name == "copy":
             fix = primary_fix(case.answer) if case.answer else None
             if not fix:

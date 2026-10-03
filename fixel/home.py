@@ -11,6 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from . import pix
 from .casefile import CaseRecord
 
 # The one bold element: a pixel wordmark inside screenshot-selection corners,
@@ -18,6 +19,7 @@ from .casefile import CaseRecord
 WORDMARK_ROWS = ("█▀▀ █ ▀▄▀ █▀▀ █  ", "█▀  █ ▄▀▄ ██▄ █▄▄")
 GRADIENT = ((0x5A, 0xA9, 0xFF), (0x8B, 0x7C, 0xFF))  # sky blue → violet
 OK, PROBLEM, QUIET = "#5FD38D", "#F2B84B", "grey62"
+PIX_COLOR = "#A99BFF"  # Pix, the mascot: soft violet, the far end of the wordmark's gradient
 MODE_COLORS = {"error": "#FF6B6B", "math": "#4FD1C5", "doc": "#F2B84B", "ui": "#5AA9FF", "general": "grey70"}
 LEFT_WIDTH = 26
 NARROW = 80  # below this many columns, stack instead of side-by-side
@@ -79,15 +81,14 @@ def wordmark() -> list[Text]:
     return rows
 
 
-def _left(info: HomeInfo) -> RenderableType:
-    corner_gap = " " * (len(WORDMARK_ROWS[0]) + 2)
+def _left(info: HomeInfo, face: list[str] | None = None) -> RenderableType:
     greeting = f"Welcome back, {info.name}" if info.name and info.solved else (
         f"Welcome to Fixel, {info.name}" if info.name else "Welcome to Fixel"
     )
     return Group(
-        Text(f"⌜{corner_gap}⌝", style=QUIET),
-        *(Text("  ") + row for row in wordmark()),
-        Text(f"⌞{corner_gap}⌟", style=QUIET),
+        *(Text(row, style=f"bold {PIX_COLOR}") for row in face or pix.big_face()),
+        Text(""),
+        *wordmark(),
         Text(""),
         Text(greeting, style="bold"),
         Text(""),
@@ -144,14 +145,15 @@ def _right(info: HomeInfo) -> RenderableType:
     )
 
 
-def render_home(info: HomeInfo, width: int) -> RenderableType:
+def render_home(info: HomeInfo, width: int, face: list[str] | None = None) -> RenderableType:
+    """`face` swaps in a frame of Pix's startup animation; omit it for the resting face."""
     if min(width, MAX_WIDTH) >= NARROW:
         body = Table(box=box.MINIMAL, show_header=False, show_edge=False, padding=(0, 1), expand=True)
         body.add_column(width=LEFT_WIDTH, no_wrap=True)
         body.add_column(ratio=1)
-        body.add_row(_left(info), _right(info))
+        body.add_row(_left(info, face), _right(info))
     else:
-        body = Group(_left(info), Text(""), _right(info))
+        body = Group(_left(info, face), Text(""), _right(info))
     panel = Panel(body, box=box.ROUNDED, border_style=QUIET, padding=(0, 1), width=min(width, MAX_WIDTH))
     problems = [check.fix for check in info.checks if not check.ok and check.fix]
     parts: list[RenderableType] = [panel]

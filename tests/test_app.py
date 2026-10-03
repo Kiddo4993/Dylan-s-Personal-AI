@@ -310,3 +310,31 @@ async def test_homepage_recent_skips_repeats_of_the_same_problem(tmp_path, conso
     await app.startup()
     out = console.file.getvalue()
     assert out.count("No module named pandas") == 1 and "Integrate x sin x" in out
+
+
+async def test_thinking_line_knows_about_screenshots_and_deep_mode(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR, ERR, ERR]))
+    seen = []
+    real = app.ui.stream_answer
+
+    async def spy(chunks, **kwargs):
+        seen.append(kwargs)
+        return await real(chunks, **kwargs)
+
+    app.ui.stream_answer = spy
+    await app.ask("2+2?")
+    await app.capture_once()
+    await app.ask("")
+    await app.handle_action("deeper")
+    assert seen == [
+        {"images": False, "deep": False},
+        {"images": True, "deep": False},
+        {"images": True, "deep": True},
+    ]
+
+
+async def test_marking_worked_makes_pix_happy(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR]))
+    await app.ask("why?")
+    await app.handle_action("worked")
+    assert "⌜^‿^⌝" in console.file.getvalue()
