@@ -1,4 +1,50 @@
+# --- Secrets -------------------------------------------------------------
+# Fixel keeps API keys in the macOS Keychain, never in files. These patterns
+# are a safety net in case a key file ever lands in the project folder.
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets.*
+credentials.*
+
+# --- Your personal Fixel data ---------------------------------------------
+# Lives in ~/.fixel and ~/Fixel Notes, outside this repo. Ignored here too in
+# case it's ever copied in: screenshots, past cases, notes about you.
+.fixel/
+shots/
+casefile.db
+*.db
+*.sqlite
+about-me.md
+Fixel Notes/
+
+# --- Python ---------------------------------------------------------------
 .venv/
+venv/
+env/
 __pycache__/
+*.py[cod]
 *.egg-info/
+build/
+dist/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Editors and macOS ----------------------------------------------------
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# --- AI coding-tool scratch -------------------------------------------------
+.superpowers/
+.claude/settings.local.json
+
+# --- Stray files ------------------------------------------------------------
+/.md
