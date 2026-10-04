@@ -59,7 +59,7 @@ double-tap again to add more (up to 5).
 | ⌃N | new case |
 
 **Commands:** `/model sonnet|opus|gemini` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
-`/cases <words>` · `/open <number>` · `/help` · `/quit`
+`/cases <words>` · `/open <number>` · `/help` · `/exit`
 """
 
 

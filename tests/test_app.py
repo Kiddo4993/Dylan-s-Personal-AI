@@ -366,3 +366,14 @@ async def test_learn_command_reaches_the_model(tmp_path, console):
 def test_help_lists_the_learn_command(console):
     UI(console).help()
     assert "/learn" in console.file.getvalue()
+
+
+async def test_exit_and_quit_both_close_fixel(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    assert await app.handle_command("/exit") is False
+    assert await app.handle_command("/quit") is False
+
+
+def test_help_lists_exit(console):
+    UI(console).help()
+    assert "/exit" in console.file.getvalue()
