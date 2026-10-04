@@ -61,7 +61,7 @@ fixel --here    # runs in the current terminal instead
 | ⌃N | new case |
 | ⌃C | stop an answer that's streaming |
 
-Commands: `/model sonnet|opus|gemini`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/quit`.
+Commands: `/model sonnet|opus|gemini`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/quit`.
 
 ## Customize
 

@@ -58,7 +58,7 @@ double-tap again to add more (up to 5).
 | ⌃O | open the past case Fixel used |
 | ⌃N | new case |
 
-**Commands:** `/model sonnet|opus|gemini` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
+**Commands:** `/model sonnet|opus|gemini` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
 `/cases <words>` · `/open <number>` · `/help` · `/quit`
 """
 

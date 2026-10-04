@@ -326,11 +326,7 @@ class FixelApp:
             )
             self.ui.info(f"Saved {path}")
         elif name == "learn":
-            self.session.learn = not self.session.learn
-            if self.session.learn:
-                self.ui.info("Learn mode on: you'll get hints and guiding questions. Send /answer for the full solution.")
-            else:
-                self.ui.info("Learn mode off: full answers.")
+            self._set_learn(not self.session.learn)
         elif name == "follow":
             if not self.session.tray:
                 self.ui.warn("Take a screenshot first (⌥⌥), then press ⌃F to attach it to this case.")
@@ -350,6 +346,13 @@ class FixelApp:
             self._sync_status()
             self.ui.info("New case. Double-tap ⌥ to screenshot.")
 
+    def _set_learn(self, on: bool) -> None:
+        self.session.learn = on
+        if on:
+            self.ui.info("Learn mode on: you'll get hints and guiding questions. Send /answer for the full solution.")
+        else:
+            self.ui.info("Learn mode off: full answers.")
+
     async def handle_command(self, text: str) -> bool:
         """Run a slash command. Returns False when Fixel should quit."""
         command, _, arg = text.partition(" ")
@@ -364,6 +367,12 @@ class FixelApp:
                 self.ui.info(f"Model: {self.model_alias} ({current}). Options: {', '.join(self.cfg.models)}")
             elif self.select_model(arg):
                 self.ui.banner(self.provider.name, self.session.learn)
+        elif command == "/learn":
+            choice = arg.lower()
+            if choice not in ("", "on", "off"):
+                self.ui.warn("Usage: /learn (switch), /learn on, or /learn off")
+            else:
+                self._set_learn(not self.session.learn if not choice else choice == "on")
         elif command == "/answer":
             if not self.session.learn:
                 self.ui.info("Learn mode is off, so answers are already complete.")

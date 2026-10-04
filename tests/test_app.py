@@ -338,3 +338,31 @@ async def test_marking_worked_makes_pix_happy(tmp_path, console):
     await app.ask("why?")
     await app.handle_action("worked")
     assert "⌜^‿^⌝" in console.file.getvalue()
+
+
+async def test_learn_command_toggles_and_sets(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    await app.handle_command("/learn")
+    assert app.session.learn is True
+    await app.handle_command("/learn")
+    assert app.session.learn is False
+    await app.handle_command("/learn on")
+    await app.handle_command("/learn on")
+    assert app.session.learn is True
+    await app.handle_command("/learn off")
+    assert app.session.learn is False
+    await app.handle_command("/learn maybe")
+    assert app.session.learn is False and "Usage: /learn" in console.file.getvalue()
+
+
+async def test_learn_command_reaches_the_model(tmp_path, console):
+    provider = FakeProvider()
+    app = make_app(tmp_path, console, provider)
+    await app.handle_command("/learn on")
+    await app.ask("2+2?")
+    assert "Learn mode is ON" in provider.calls[0][1]
+
+
+def test_help_lists_the_learn_command(console):
+    UI(console).help()
+    assert "/learn" in console.file.getvalue()
