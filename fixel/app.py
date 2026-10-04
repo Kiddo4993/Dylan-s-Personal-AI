@@ -16,6 +16,7 @@ from .brain import Provider, ProviderError, make_provider
 from .capture import capture_region
 from .casefile import CaseFile, CaseRecord
 from .config import Config
+from .commands import BY_NAME
 from .home import TIPS, Check, HomeInfo, mac_first_name
 from .hotkey import HotkeyListener
 from .memory import AboutMe, past_cases_context
@@ -46,7 +47,7 @@ class FixelApp:
         self.model_alias = cfg.default_model
         self.casefile = casefile
         self.about_me = AboutMe(cfg.about_me_path)
-        self.last_recall: CaseRecord | None = None  # the past case used for the current one (⌃O)
+        self.last_recall: CaseRecord | None = None  # the past case used for the current one (/open)
         self._held: str | None = None  # a stray-looking message waiting for a second Enter
         self.screen_ok = True
         self._provider_factory = provider_factory
@@ -217,9 +218,9 @@ class FixelApp:
         )
 
     async def think_harder(self) -> None:
-        """⌃T: re-answer the latest question with deep thinking, replacing the quick answer."""
+        """/deeper: re-answer the latest question with deep thinking, replacing the quick answer."""
         if self.provider is None or not self.session.retract_answer():
-            self.ui.warn("Ask something first, then press ⌃T to re-answer it with deep thinking.")
+            self.ui.warn("Ask something first, then type /deeper to re-answer it with deep thinking.")
             return
         self.ui.info("Thinking harder…")
         answer = await self._stream_answer(deep=True)
@@ -254,7 +255,7 @@ class FixelApp:
         self.ui.action_bar()
 
     async def _interruptible(self, awaitable) -> tuple[bool, object]:
-        """Await `awaitable` so that ⌃C cancels just it, not Fixel. Returns (finished, result)."""
+        """Await `awaitable` so that Ctrl+C cancels just it, not Fixel. Returns (finished, result)."""
         task = asyncio.ensure_future(awaitable)
         loop = asyncio.get_running_loop()
         try:
@@ -308,7 +309,7 @@ class FixelApp:
             await self.think_harder()
         elif name == "worked":
             if case.case_id is None or self.casefile is None:
-                self.ui.warn("Nothing to mark yet. Press ⌃G after a fix works.")
+                self.ui.warn("Nothing to mark yet. Type /worked after a fix works.")
                 return
             self.casefile.mark_worked(case.case_id)
             self.ui.react("Nice. Marked as worked. Fixel will reach for this fix first next time.")
@@ -346,7 +347,7 @@ class FixelApp:
             self._set_learn(not self.session.learn)
         elif name == "follow":
             if not self.session.tray:
-                self.ui.warn("Take a screenshot first (⌥⌥), then press ⌃F to attach it to this case.")
+                self.ui.warn("Take a screenshot first (⌥⌥), then type /follow to add it to this case.")
                 return
             self.session.follow_up = not self.session.follow_up
             self._sync_status()
@@ -376,6 +377,9 @@ class FixelApp:
         arg = arg.strip()
         if command in ("/quit", "/exit"):
             return False
+        if not arg and command in BY_NAME and BY_NAME[command].action:  # same as its Ctrl shortcut
+            await self.handle_action(BY_NAME[command].action)
+            return True
         if command == "/help":
             self.ui.help()
         elif command == "/model":

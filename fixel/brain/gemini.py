@@ -28,7 +28,7 @@ def to_contents(turns: list[Turn]) -> list:
 def make_config(system: str, model: str = "", *, deep: bool = False):
     from google.genai import types
 
-    # Gemini 3+ takes a thinking level: low answers fast, high is ⌃T "think harder".
+    # Gemini 3+ takes a thinking level: low answers fast, high is /deeper.
     # Older models use a different knob, so leave them on their defaults.
     thinking = None
     if model.startswith("gemini-3"):
@@ -76,7 +76,7 @@ class GeminiProvider:
         models = [self.model, *self.fallbacks]
         for index, model in enumerate(models):
             self.last_model = model
-            # The last model gets unlimited patience so there's always an answer (⌃C still stops it).
+            # The last model gets unlimited patience so there's always an answer (Ctrl+C still stops it).
             # Deep thinking legitimately takes longer before its first word.
             patience = None if index == len(models) - 1 else self.slow_after * (3 if deep else 1)
             try:

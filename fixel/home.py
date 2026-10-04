@@ -26,12 +26,13 @@ NARROW = 80  # below this many columns, stack instead of side-by-side
 MAX_WIDTH = 100  # a card, not a full-width banner, in wide windows
 
 TIPS = (
-    "Press ⌃T to re-answer the last question with deep thinking.",
-    "Press ⌃G when a fix works. Fixel reaches for it first next time.",
+    "Type /deeper to re-answer the last question with deep thinking.",
+    "Type /worked when a fix works. Fixel reaches for it first next time.",
     "Teach Fixel about you: /remember I'm taking AP Calc BC",
-    "Press ⌃L for learn mode: hints instead of answers.",
+    "Type /learn for learn mode: hints instead of answers.",
     "Double-tap ⌥ again before pressing Enter to add more screenshots to one question.",
-    "Press ⌃R to run a suggested command. Fixel always asks first.",
+    "Type /run to run a suggested command. Fixel always asks first.",
+    "Type / to see every command.",
 )
 
 
@@ -93,7 +94,7 @@ def _left(info: HomeInfo, face: list[str] | None = None) -> RenderableType:
         Text(greeting, style="bold"),
         Text(""),
         Text(info.model),
-        Text("quick answers, ⌃T deep", style=QUIET),
+        Text("quick answers, /deeper for more", style=QUIET),
     )
 
 

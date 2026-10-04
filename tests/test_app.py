@@ -410,3 +410,32 @@ async def test_short_words_are_not_mistaken_for_stray_keys(tmp_path, console):
     app = make_app(tmp_path, console, provider)
     await app.ask("hi")
     assert len(provider.calls) == 1
+
+
+async def test_every_shortcut_works_as_a_slash_command(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    ran = []
+
+    async def record(name):
+        ran.append(name)
+
+    app.handle_action = record
+    for command in ("/deeper", "/worked", "/copy", "/run", "/save", "/new", "/follow", "/open"):
+        assert await app.handle_command(command) is True
+    assert ran == ["deeper", "worked", "copy", "run", "save", "new", "follow", "open"]
+
+
+async def test_open_with_a_number_still_opens_that_case(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider([ERR]))
+    await app.ask("why?")
+    await app.handle_command(f"/open {app.session.case.case_id}")
+    assert "wrong venv" in console.file.getvalue()
+
+
+async def test_messages_point_to_slash_commands(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    await app.handle_action("deeper")
+    await app.handle_action("worked")
+    await app.handle_action("follow")
+    out = console.file.getvalue()
+    assert "/deeper" in out and "/worked" in out and "/follow" in out and "⌃" not in out

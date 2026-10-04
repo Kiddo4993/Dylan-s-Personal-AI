@@ -26,7 +26,7 @@ def info(**overrides):
         worked=3,
         notes=2,
         recent=[case(2, "error", "No module named pandas"), case(1, "math", "Integrate x² sin x")],
-        tip="Press ⌃T to re-answer with deep thinking.",
+        tip="Type /deeper to re-answer with deep thinking.",
     )
     base.update(overrides)
     return HomeInfo(**base)
@@ -46,7 +46,7 @@ def test_wide_window_puts_columns_side_by_side():
     assert "Welcome back, Dylan" in out and "gemini-3.6-flash" in out
     assert "14 solved, 3 confirmed working" in out and "2 notes about you" in out
     assert "Oct 02" in out and "No module named pandas" in out
-    assert "Tip: Press ⌃T to re-answer with deep thinking." in " ".join(out.split())
+    assert "Tip: Type /deeper to re-answer with deep thinking." in " ".join(out.split())
 
 
 def test_narrow_window_stacks_columns():
@@ -94,3 +94,11 @@ def test_homepage_shows_pix_above_the_wordmark():
     out = render(info(), 100)
     assert "●   ●" in out
     assert out.index("●   ●") < out.index("█▀▀")
+
+
+def test_homepage_and_tips_use_slash_commands():
+    from fixel.home import TIPS
+
+    out = render(info(), 100)
+    assert "⌃" not in out and "/deeper" in out
+    assert not any("⌃" in tip for tip in TIPS)

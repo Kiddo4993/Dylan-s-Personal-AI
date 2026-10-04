@@ -106,7 +106,7 @@ class Session:
         self._undo = None
 
     def retract_answer(self) -> bool:
-        """Take back the latest answer so its question can be re-asked (⌃T). False if there's none."""
+        """Take back the latest answer so its question can be re-asked (/deeper). False if there's none."""
         turns = self.case.turns
         if not turns or turns[-1].role != "assistant":
             return False

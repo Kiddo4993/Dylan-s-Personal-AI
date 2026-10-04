@@ -45,7 +45,7 @@ def split_header(text: str, final: bool = False) -> tuple[Header, str] | None:
 
 
 def primary_fix(body: str) -> str | None:
-    """What ⌃Y copies: the first code block, else the `Answer:` line, else the whole body."""
+    """What /copy copies: the first code block, else the `Answer:` line, else the whole body."""
     fence = _FENCE.search(body)
     if fence:
         return fence.group(2).rstrip("\n")
@@ -56,7 +56,7 @@ def primary_fix(body: str) -> str | None:
 
 
 def runnable_command(body: str) -> str | None:
-    """What ⌃R may run: the first bash/sh/zsh block, with any `$ ` prompts removed."""
+    """What /run may run: the first bash/sh/zsh block, with any `$ ` prompts removed."""
     for fence in _FENCE.finditer(body):
         if fence.group(1).lower() in _SHELL_LANGS:
             lines = [re.sub(r"^\$ ", "", line) for line in fence.group(2).strip("\n").splitlines()]

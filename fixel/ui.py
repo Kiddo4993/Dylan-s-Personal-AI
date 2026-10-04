@@ -16,9 +16,11 @@ from rich.markdown import Markdown
 from rich.markup import escape
 from rich.panel import Panel
 from rich.syntax import Syntax
+from rich.table import Table
 from rich.text import Text
 
 from . import pix
+from .commands import COMMANDS, SlashCompleter, shortcut_label
 from .home import PIX_COLOR, HomeInfo, render_home
 from .parse import Header, split_header
 
@@ -29,37 +31,14 @@ BADGES = {
     "ui": "bold white on blue",
     "general": "bold black on white",
 }
-ACTION_KEYS = (
-    ("c-t", "deeper"),
-    ("c-g", "worked"),
-    ("c-y", "copy"),
-    ("c-r", "run"),
-    ("c-s", "save"),
-    ("c-l", "learn"),
-    ("c-f", "follow"),
-    ("c-o", "open"),
-    ("c-n", "new"),
-)
-HELP = """\
+ACTION_KEYS = tuple((command.key, command.action) for command in COMMANDS if command.key)
+HELP_INTRO = """\
 **Screenshot:** double-tap **Right Option ⌥**, then drag over anything. Shots wait in the tray; \
 double-tap again to add more (up to 5).
 
 **Ask:** press **Enter**, or type a question first. Typing after an answer asks a follow-up.
 
-| Key | Does |
-|---|---|
-| ⌃T | think harder: re-answer the last question with deep thinking |
-| ⌃G | that worked: Fixel reaches for this fix first next time |
-| ⌃Y | copy the fix / answer / draft |
-| ⌃R | run the suggested shell command (asks first) |
-| ⌃S | save this case as a note in ~/Fixel Notes |
-| ⌃L | learn mode: hints instead of answers (`/answer` reveals) |
-| ⌃F | attach the tray to the current case instead of starting a new one |
-| ⌃O | open the past case Fixel used |
-| ⌃N | new case |
-
-**Commands:** `/model sonnet|opus|gemini` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
-`/cases <words>` · `/open <number>` · `/help` · `/exit`
+**Commands:** type **/** to see this list as a menu.
 """
 
 
@@ -89,10 +68,10 @@ def toolbar_text(status: Status) -> str:
         return status.flash
     if status.tray:
         plural = "" if status.tray == 1 else "s"
-        follow = "on" if status.follow_up else "off"
-        return f"📸 {status.tray} shot{plural} in tray · ⏎ ask · ⌥⌥ add more · ⌃F follow-up: {follow}"
+        follow = "adding to this case (/follow to undo)" if status.follow_up else "/follow to add to this case"
+        return f"📸 {status.tray} shot{plural} in tray · ⏎ ask · ⌥⌥ add more · {follow}"
     hotkey = "⌥⌥ screenshot" if status.hotkey_ok else "⚠ hotkey off (run fixel setup)"
-    return f"{hotkey} · ⌃T deeper · ⌃Y copy · ⌃R run · ⌃S save · ⌃N new · /help"
+    return f"{hotkey} · / for commands · /deeper · /copy · /run · /new"
 
 
 class Thinking:
@@ -110,7 +89,7 @@ class Thinking:
         line = Text()
         line.append(pix.mini_frame(moment), style=f"bold {PIX_COLOR}")  # colour on Pix only
         line.append(f" {pix.verb(moment, images=self.images, deep=self.deep)}… ")
-        line.append(f"{seconds:.0f}s · ⌃C to stop", style="dim")
+        line.append(f"{seconds:.0f}s · Ctrl+C to stop", style="dim")
         yield line
 
 
@@ -129,7 +108,11 @@ class UI:
             for key, name in ACTION_KEYS:
                 bindings.add(key)(self._action_handler(name))
             self._session = PromptSession(
-                key_bindings=bindings, bottom_toolbar=lambda: toolbar_text(self.status), refresh_interval=0.3
+                key_bindings=bindings,
+                bottom_toolbar=lambda: toolbar_text(self.status),
+                refresh_interval=0.3,
+                completer=SlashCompleter(),  # typing / pops up the command menu
+                complete_while_typing=True,
             )
         return self._session
 
@@ -141,7 +124,7 @@ class UI:
         return handler
 
     async def prompt(self, default: str = "") -> str | KeyAction | None:
-        """Read one line. ⌃-keys return a KeyAction; ⌃D returns None; ⌃C clears the line."""
+        """Read one line. Ctrl shortcuts return a KeyAction; Ctrl+D returns None; Ctrl+C clears the line."""
         with patch_stdout(raw=True):
             try:
                 return await self._prompt_session().prompt_async(HTML("<ansicyan><b>›</b></ansicyan> "), default=default)
@@ -186,7 +169,15 @@ class UI:
         self.console.print(f"[bold {PIX_COLOR}]{pix.HAPPY}[/] {escape(msg)}")
 
     def help(self) -> None:
-        self.console.print(Markdown(HELP))
+        self.console.print(Markdown(HELP_INTRO))
+        table = Table.grid(padding=(0, 2))
+        table.add_column(no_wrap=True, style="bold")
+        table.add_column()
+        for command in COMMANDS:
+            table.add_row(f"{command.name} {command.usage}".strip(), command.summary)
+        self.console.print(table)
+        shortcuts = ", ".join(f"{shortcut_label(c.key)} {c.name}" for c in COMMANDS if c.key)
+        self.console.print(Text(f"\nShortcuts, if you like keys: {shortcuts}", style="dim"))
 
     @staticmethod
     def answer_view(header: Header | None, body: str):
@@ -221,7 +212,7 @@ class UI:
                 f"[magenta]🧠 Using your past case from {record.created_at:%b %d}{proven}: {escape(record.key or record.question)}[/]"
             )
         about = f" · plus {notes} note{'' if notes == 1 else 's'} about you" if notes else ""
-        self.console.print(f"[dim]   ⌃O opens it{about}[/]")
+        self.console.print(f"[dim]   /open shows it{about}[/]")
 
     def answer_footer(self, model: str, configured: str, seconds: float, deep: bool) -> None:
         if model != configured:
@@ -231,7 +222,7 @@ class UI:
 
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
-        self.console.print("[dim]⌃T think harder · ⌃G it worked · ⌃Y copy · ⌃R run · ⌃S save note · ⌃N new[/]")
+        self.console.print("[dim]/deeper think harder · /worked it worked · /copy · /run · /save · /new[/]")
 
     def show_command(self, cmd: str) -> None:
         self.console.print(Panel(Syntax(cmd, "bash", theme="monokai", word_wrap=True), title="Run this?", border_style="yellow"))

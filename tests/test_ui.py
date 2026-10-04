@@ -7,7 +7,7 @@ from fixel.ui import UI, Status, toolbar_text
 def test_toolbar_idle_and_tray():
     assert toolbar_text(Status()).startswith("⌥⌥ screenshot")
     assert "2 shots in tray" in toolbar_text(Status(tray=2))
-    assert "follow-up: on" in toolbar_text(Status(tray=1, follow_up=True))
+    assert "adding to this case" in toolbar_text(Status(tray=1, follow_up=True))
     assert "hotkey off" in toolbar_text(Status(hotkey_ok=False))
 
 
@@ -72,10 +72,31 @@ def test_answer_footer_without_fallback(console):
     assert "busy" not in out and "gemini-3.6-flash · 2.0s" in out and "deep" not in out
 
 
-def test_help_and_toolbar_mention_think_harder(console):
+def test_help_lists_every_command_and_the_hidden_shortcuts(console):
+    from fixel.commands import COMMANDS
+
     UI(console).help()
-    assert "⌃T" in console.file.getvalue()
-    assert "⌃T deeper" in toolbar_text(Status())
+    out = console.file.getvalue()
+    assert all(c.name in out for c in COMMANDS)
+    assert "Ctrl+T" in out and "⌃" not in out
+
+
+def test_nothing_on_screen_uses_the_control_symbol(console):
+    from datetime import datetime
+
+    from fixel.casefile import CaseRecord
+    from fixel.ui import Thinking
+
+    ui = UI(console)
+    ui.action_bar()
+    ui.memory_line([CaseRecord(1, datetime(2026, 10, 2), "error", "k", "q", "a", [])], 1)
+    console.print(Thinking(images=True))
+    toolbars = [toolbar_text(Status()), toolbar_text(Status(tray=2)), toolbar_text(Status(hotkey_ok=False))]
+    out = console.file.getvalue() + "".join(toolbars)
+    assert "⌃" not in out
+    assert "/deeper" in toolbar_text(Status()) and "/ for commands" in toolbar_text(Status())
+    assert "/follow" in toolbar_text(Status(tray=2))
+    assert "/open" in out and "Ctrl+C to stop" in out
 
 
 def test_thinking_line_has_pix_verb_timer_and_stop_hint(console):
@@ -83,7 +104,7 @@ def test_thinking_line_has_pix_verb_timer_and_stop_hint(console):
 
     console.print(Thinking(images=True))
     out = console.file.getvalue()
-    assert "⌜•‿•⌝  Squinting at your screenshot… 0s · ⌃C to stop" in out
+    assert "⌜•‿•⌝  Squinting at your screenshot… 0s · Ctrl+C to stop" in out
 
 
 def test_thinking_line_holds_still_when_animations_are_off(console):

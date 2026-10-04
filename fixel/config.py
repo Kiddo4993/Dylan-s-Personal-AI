@@ -19,11 +19,11 @@ default_model = "sonnet"        # sonnet | opus | gemini
 notes_dir = "~/Fixel Notes"
 recall_threshold = 0.6          # 0-1: how much of a past problem must be on screen for Fixel to reuse it
 double_tap_window = 0.4         # seconds allowed between Right Option taps
-thinking = false                # Claude: think on every answer (slower). ⌃T always thinks harder.
+thinking = false                # Claude: think on every answer (slower). /deeper always thinks harder.
 max_tokens = 16000
 animations = true               # Pix's thinking face and the startup moment
 gemini_fallbacks = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]   # tried in order when Gemini is busy
-slow_model_seconds = 20         # no words after this long? try the next Gemini model (⌃T allows 3x)
+slow_model_seconds = 20         # no words after this long? try the next Gemini model (/deeper allows 3x)
 
 [models]
 sonnet = "claude-sonnet-5-5"

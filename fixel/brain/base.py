@@ -26,5 +26,5 @@ class Provider(Protocol):
     last_model: str  # the model that actually produced the latest answer (may be a busy-fallback)
 
     def stream(self, turns: list[Turn], system: str, *, deep: bool = False) -> AsyncIterator[str]:
-        """Stream reply text. `deep` asks for maximum thinking (⌃T "think harder")."""
+        """Stream reply text. `deep` asks for maximum thinking (/deeper)."""
         ...
