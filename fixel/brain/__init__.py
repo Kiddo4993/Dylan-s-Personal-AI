@@ -15,14 +15,19 @@ def make_provider(alias: str, cfg: Config) -> Provider:
     vendor = provider_for_model(model)
     key = get_api_key(vendor)
     if not key:
-        label = "Gemini" if vendor == "gemini" else "Anthropic"
-        raise ProviderError(f"No {label} API key yet. Run `fixel setup`.", auth=True)
+        labels = {"gemini": "Gemini", "anthropic": "Anthropic", "openai": "OpenAI"}
+        label = labels.get(vendor, vendor.title())
+        raise ProviderError(f"No {label} API key yet. Run `/api {vendor}` or `fixel setup`.", auth=True)
     if vendor == "gemini":
         from .gemini import GeminiProvider
 
         return GeminiProvider(
             key, model, fallbacks=[m for m in cfg.gemini_fallbacks if m != model], slow_after=cfg.slow_model_seconds
         )
+    if vendor == "openai":
+        from .openai import OpenAIProvider
+
+        return OpenAIProvider(key, model)
     from .claude import ClaudeProvider
 
     return ClaudeProvider(key, model, max_tokens=cfg.max_tokens, thinking=cfg.thinking)

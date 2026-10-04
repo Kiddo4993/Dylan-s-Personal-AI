@@ -15,7 +15,8 @@ from . import actions, permissions
 from .brain import Provider, ProviderError, make_provider
 from .capture import capture_region
 from .casefile import CaseFile, CaseRecord
-from .config import Config
+from .config import Config, detect_vendor, get_api_key, mask_key, provider_for_model, set_api_key
+from .setup import PROVIDERS, check_api_key
 from .home import TIPS, Check, HomeInfo, mac_first_name
 from .hotkey import HotkeyListener
 from .memory import AboutMe, past_cases_context
@@ -370,6 +371,85 @@ class FixelApp:
         else:
             self.ui.info("Learn mode off: full answers.")
 
+    async def handle_api(self, arg: str) -> None:
+        """Configure API keys for AI providers (Anthropic, Gemini, OpenAI) right in the terminal."""
+        aliases = {
+            "claude": "anthropic",
+            "anthropic": "anthropic",
+            "google": "gemini",
+            "gemini": "gemini",
+            "openai": "openai",
+            "chatgpt": "openai",
+            "gpt": "openai",
+        }
+        parts = arg.split(None, 1)
+        vendor: str | None = None
+        key: str | None = None
+
+        if len(parts) == 2:
+            raw_v, raw_k = parts[0].lower(), parts[1].strip()
+            vendor = aliases.get(raw_v)
+            if not vendor:
+                self.ui.warn(f"Unknown provider '{parts[0]}'. Choose one of: anthropic, gemini, openai.")
+                return
+            key = raw_k
+        elif len(parts) == 1:
+            token = parts[0]
+            detected = detect_vendor(token)
+            if detected:
+                vendor = detected
+                key = token
+            elif token.lower() in aliases:
+                vendor = aliases[token.lower()]
+            else:
+                self.ui.warn(
+                    f"Unknown provider or unrecognized key format: '{token}'. Options: anthropic, gemini, openai."
+                )
+                return
+
+        if not vendor:
+            self.ui.console.print("\n[bold cyan]AI Provider API Keys[/]")
+            for v, label, alias, url, _ in PROVIDERS:
+                current_k = get_api_key(v)
+                status = f"[green]Saved[/] ({mask_key(current_k)})" if current_k else "[dim]Not set[/]"
+                self.ui.console.print(f"  • [bold]{label}[/]: {status} [dim]— {url}[/]")
+            self.ui.console.print("")
+
+            chosen = await self.ui.ask_input("Provider to set (anthropic / gemini / openai, or Enter to cancel): ")
+            if not chosen:
+                return
+            vendor = aliases.get(chosen.lower())
+            if not vendor:
+                self.ui.warn(f"Unknown provider '{chosen}'. Choose one of: anthropic, gemini, openai.")
+                return
+
+        if not key:
+            label = {"anthropic": "Anthropic (Claude)", "gemini": "Google Gemini", "openai": "OpenAI"}.get(
+                vendor, vendor.title()
+            )
+            key = await self.ui.ask_input(f"Paste your {label} API key (Enter to cancel): ")
+            if not key:
+                self.ui.info("Cancelled. No key saved.")
+                return
+
+        set_api_key(vendor, key)
+        label = {"anthropic": "Anthropic", "gemini": "Google Gemini", "openai": "OpenAI"}.get(vendor, vendor.title())
+        self.ui.info(f"Saved {label} API key ({mask_key(key)}) to the macOS Keychain.")
+
+        target_alias = {"anthropic": "sonnet", "gemini": "gemini", "openai": "gpt"}.get(vendor, vendor)
+        target_model = self.cfg.models.get(target_alias, target_alias)
+
+        validation = check_api_key(vendor, key, target_model)
+        self.ui.console.print(validation)
+
+        current_vendor = provider_for_model(self.cfg.models.get(self.model_alias, self.model_alias))
+        if self.provider is None or current_vendor == vendor:
+            self.select_model(self.model_alias)
+            if self.provider:
+                self.ui.react(f"{self.provider.name} is ready to use!")
+        else:
+            self.ui.info(f"{label} is ready! Switch to it anytime with `/model {target_alias}`.")
+
     async def handle_command(self, text: str) -> bool:
         """Run a slash command. Returns False when Fixel should quit."""
         command, _, arg = text.partition(" ")
@@ -378,6 +458,8 @@ class FixelApp:
             return False
         if command == "/help":
             self.ui.help()
+        elif command == "/api":
+            await self.handle_api(arg)
         elif command == "/model":
             if not arg:
                 current = self.provider.name if self.provider else "none"

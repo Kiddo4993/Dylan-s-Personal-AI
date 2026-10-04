@@ -37,7 +37,7 @@ fixel setup
 ```
 
 It will:
-1. Ask for your **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com/settings/keys)) and, optionally, a **Gemini key** ([aistudio.google.com](https://aistudio.google.com/apikey)). Keys go into the macOS Keychain, never into a file.
+1. Ask for your **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com/settings/keys)) and, optionally, a **Gemini key** ([aistudio.google.com](https://aistudio.google.com/apikey)) or **OpenAI key** ([platform.openai.com](https://platform.openai.com/api-keys)). Keys go into the macOS Keychain, never into a file.
 2. Check that the key works and the model exists.
 3. Open System Settings for **Input Monitoring** (the hotkey) and **Screen Recording** (screenshots). Switch Terminal on in both, then quit and reopen Terminal.
 
@@ -61,7 +61,7 @@ fixel --here    # runs in the current terminal instead
 | ⌃N | new case |
 | ⌃C | stop an answer that's streaming |
 
-Commands: `/model sonnet|opus|gemini`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/exit` (or `/quit`).
+Commands: `/model sonnet|opus|gemini|gpt`, `/api [provider] [key]`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/exit` (or `/quit`).
 
 ## Customize
 
@@ -70,7 +70,7 @@ Commands: `/model sonnet|opus|gemini`, `/learn [on|off]`, `/answer`, `/remember 
 
 ## Privacy & cost
 
-Screenshots go only to the model provider you've selected (Anthropic or Google). The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
+Screenshots go only to the model provider you've selected (Anthropic, Google, or OpenAI). The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
 
 ## Develop
 

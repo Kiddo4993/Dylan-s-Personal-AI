@@ -58,7 +58,7 @@ double-tap again to add more (up to 5).
 | ⌃O | open the past case Fixel used |
 | ⌃N | new case |
 
-**Commands:** `/model sonnet|opus|gemini` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
+**Commands:** `/model sonnet|opus|gemini|gpt` · `/api [provider] [key]` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
 `/cases <words>` · `/open <number>` · `/help` · `/exit`
 """
 
@@ -149,6 +149,14 @@ class UI:
                 return ""
             except EOFError:
                 return None
+
+    async def ask_input(self, question: str, *, is_password: bool = False, default: str = "") -> str:
+        with patch_stdout(raw=True):
+            try:
+                reply = await PromptSession().prompt_async(question, is_password=is_password, default=default)
+                return reply.strip()
+            except (KeyboardInterrupt, EOFError):
+                return ""
 
     async def confirm(self, question: str) -> bool:
         try:
