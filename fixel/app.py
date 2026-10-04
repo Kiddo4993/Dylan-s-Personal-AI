@@ -47,6 +47,7 @@ class FixelApp:
         self.casefile = casefile
         self.about_me = AboutMe(cfg.about_me_path)
         self.last_recall: CaseRecord | None = None  # the past case used for the current one (⌃O)
+        self._held: str | None = None  # a stray-looking message waiting for a second Enter
         self.screen_ok = True
         self._provider_factory = provider_factory
         self._capture = capture
@@ -186,6 +187,11 @@ class FixelApp:
         if self.provider is None:
             self.ui.error("No model is ready. Run `fixel setup`, then `/model sonnet`.")
             return text
+        if self._looks_stray(text):
+            self._held = text
+            self.ui.warn(f"Send just '{text.strip()}'? Take a screenshot with ⌥⌥ or type a question. Press Enter again to send it anyway.")
+            return text
+        self._held = None
         context = self._recall_context(text) if self.session.starts_new_case() else ""
         self.session.build_user_turn(text, context=context)
         self._sync_status()
@@ -198,6 +204,17 @@ class FixelApp:
             return text
         self._finish(answer)
         return ""
+
+    def _looks_stray(self, text: str) -> bool:
+        """A single character starting a new case with no screenshot is almost always a stray keypress,
+        and the model would invent a problem to answer. "hi", "ok", and mid-conversation replies like "5" are fine."""
+        stripped = text.strip()
+        return (
+            len(stripped) == 1
+            and not self.session.tray
+            and not self.session.case.turns
+            and self._held != text
+        )
 
     async def think_harder(self) -> None:
         """⌃T: re-answer the latest question with deep thinking, replacing the quick answer."""

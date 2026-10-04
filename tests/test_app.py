@@ -377,3 +377,36 @@ async def test_exit_and_quit_both_close_fixel(tmp_path, console):
 def test_help_lists_exit(console):
     UI(console).help()
     assert "/exit" in console.file.getvalue()
+
+
+async def test_stray_keypress_is_held_instead_of_sent(tmp_path, console):
+    provider = FakeProvider()
+    app = make_app(tmp_path, console, provider)
+    assert await app.ask("s") == "s"  # back at the prompt, not sent
+    assert provider.calls == []
+    assert "Send just 's'?" in console.file.getvalue()
+    await app.ask("s")  # Enter again: they meant it
+    assert len(provider.calls) == 1
+
+
+async def test_short_replies_mid_conversation_are_sent(tmp_path, console):
+    provider = FakeProvider()
+    app = make_app(tmp_path, console, provider)
+    await app.ask("what is 15 / 3?")
+    await app.ask("5")
+    assert len(provider.calls) == 2
+
+
+async def test_short_question_with_a_screenshot_is_sent(tmp_path, console):
+    provider = FakeProvider()
+    app = make_app(tmp_path, console, provider)
+    await app.capture_once()
+    await app.ask("?")
+    assert len(provider.calls) == 1
+
+
+async def test_short_words_are_not_mistaken_for_stray_keys(tmp_path, console):
+    provider = FakeProvider()
+    app = make_app(tmp_path, console, provider)
+    await app.ask("hi")
+    assert len(provider.calls) == 1

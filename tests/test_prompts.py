@@ -22,3 +22,9 @@ def test_about_me_notes_go_into_the_instructions():
 
 def test_instructions_explain_the_memory_block():
     assert "[Fixel memory" in build_system(learn=False)
+
+
+def test_instructions_forbid_inventing_problems():
+    system = build_system(learn=False)
+    assert "Never invent an error" in system
+    assert "ask what they need" in system
