@@ -79,3 +79,7 @@ Screenshots go only to the model provider you've selected (Anthropic or Google).
 ```bash
 .venv/bin/pytest -q
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
