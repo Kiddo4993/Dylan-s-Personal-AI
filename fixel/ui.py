@@ -76,6 +76,7 @@ class Status:
 
     tray: int = 0
     follow_up: bool = False
+    code: str = ""  # label of the attached playground code's language
     hotkey_ok: bool = True
     flash: str = ""
     flash_until: float = 0.0
@@ -88,10 +89,15 @@ class Status:
 def toolbar_text(status: Status) -> str:
     if status.flash and time.monotonic() < status.flash_until:
         return status.flash
-    if status.tray:
-        plural = "" if status.tray == 1 else "s"
+    if status.tray or status.code:
+        parts = []
+        if status.tray:
+            plural = "" if status.tray == 1 else "s"
+            parts.append(f"📸 {status.tray} shot{plural} in tray")
+        if status.code:
+            parts.append(f"📝 {status.code} code in tray")
         follow = "on" if status.follow_up else "off"
-        return f"📸 {status.tray} shot{plural} in tray · ⏎ ask · ⌥⌥ add more · ⌃F follow-up: {follow}"
+        return " · ".join(parts) + f" · ⏎ ask · ⌥⌥ add more · ⌃F follow-up: {follow}"
     hotkey = "⌥⌥ screenshot" if status.hotkey_ok else "⚠ hotkey off (run fixel setup)"
     return f"{hotkey} · ⌃T deeper · ⌃Y copy · ⌃R run · ⌃S save · ⌃N new · /help"
 

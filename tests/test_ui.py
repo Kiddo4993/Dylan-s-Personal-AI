@@ -119,3 +119,10 @@ def test_web_answers_get_their_own_badge():
     from fixel.ui import BADGES
 
     assert BADGES["web"] not in (BADGES["ui"], BADGES["general"])
+
+
+def test_toolbar_shows_attached_code():
+    text = toolbar_text(Status(code="Java"))
+    assert text.startswith("📝 Java code in tray") and "⏎ ask" in text
+    both = toolbar_text(Status(tray=1, code="Python"))
+    assert both.startswith("📸 1 shot in tray · 📝 Python code in tray")
