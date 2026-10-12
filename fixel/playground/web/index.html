@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixel Playground</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" integrity="sha384-zaeBlB/vwYsDRSlFajnDd7OydJ0cWk+c2OWybl3eSUf6hW2EbhlCsQPqKr3gkznT" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" integrity="sha384-ZYmwuq4n2gOcNxMSiJ6jyTj+BbIrilr7p6dlq6q5nmSWKmsH9UU4K1qqjycMkfmR" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js" integrity="sha384-Xy+2exU6lBoT4OpUOtnQb+cUpn+nlJQEHvRobWVtwz6wIsw4oNoO7xyd/l8rYgMy" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" integrity="sha384-o9m634t2Hy35pPNKd9Xe16ntbSw11jCOuKPDrzQGXI8k87L2JZthaA3rwmJjnF7Z" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" integrity="sha384-g0o+WW9mdIxA7LaaCKTkRm0M5TVT+Bb4s9eocxPsI2G0Xm0POG9iD6G6qP1IIsfS" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" integrity="sha384-xPpkMo5nDgD98fIcuRVYhxkZV6/9Y4L8s3p0J5c4MxgJkyKJ8BJr+xfRkq7kn6Tw" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" integrity="sha384-fpeIC2FZuPmw7mIsTvgB5BNc8QVxQC/nWg2W+CgPYOAiBiYVuHe2E8HiTWHBMIJQ" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" integrity="sha384-xYIbc5F55vPi7pb/lUnFj3wu24HlpAMZdtBHkNrb2YhPzJV3pX7+eqXT2PXSNMrw" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1f; --muted: #6e6e73; --line: #e2e0da;
+    --accent: #2f9e6b; --accent-text: #ffffff; --bad: #c4352b; --code-bg: #fbfbfa;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141416; --panel: #1c1c1f; --text: #ececee; --muted: #9a9aa0; --line: #2c2c31;
+      --accent: #3fbf86; --accent-text: #0d1f17; --bad: #ff6b5e; --code-bg: #18181b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, sans-serif;
+         display: flex; flex-direction: column; }
+  header { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line);
+           flex-wrap: wrap; }
+  header h1 { font-size: 15px; margin: 0 auto 0 0; letter-spacing: .02em; }
+  header h1 span { color: var(--accent); }
+  select, button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
+                   border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  .pane + .pane { border-left: 1px solid var(--line); }
+  .label { font-size: 12px; color: var(--muted); padding: 6px 16px; border-bottom: 1px solid var(--line); }
+  #source, .CodeMirror { flex: 1; height: 100%; width: 100%; font: 13px/1.5 var(--mono); background: var(--code-bg);
+                         color: var(--text); border: 0; padding: 8px; resize: none; }
+  .CodeMirror-gutters { background: var(--code-bg); border-right: 1px solid var(--line); }
+  .CodeMirror-cursor { border-left-color: var(--text); }
+  .editor-wrap { flex: 1; min-height: 0; display: flex; }
+  iframe { flex: 1; border: 0; background: #fff; width: 100%; }
+  #runner { flex: 1; display: none; flex-direction: column; min-height: 0; }
+  #output { flex: 1; margin: 0; padding: 12px 16px; overflow: auto; font: 13px/1.5 var(--mono); white-space: pre-wrap; }
+  #output.bad { color: var(--bad); }
+  #stdin { height: 80px; font: 13px/1.5 var(--mono); background: var(--code-bg); color: var(--text); border: 0;
+           border-top: 1px solid var(--line); padding: 8px 16px; resize: vertical; }
+  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text);
+           color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
+    .pane + .pane { border-left: 0; border-top: 1px solid var(--line); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>●</span> Fixel Playground</h1>
+  <select id="lang" aria-label="Language"></select>
+  <button id="run" class="primary" title="⌘↵">Run</button>
+  <button id="ask">Ask Fixel</button>
+  <button id="download">Download</button>
+</header>
+<main>
+  <section class="pane">
+    <div class="label" id="file">main.py</div>
+    <div class="editor-wrap"><textarea id="source" spellcheck="false"></textarea></div>
+  </section>
+  <section class="pane">
+    <div class="label" id="right-label">Preview</div>
+    <iframe id="preview" sandbox="allow-scripts" title="Preview"></iframe>
+    <div id="runner">
+      <pre id="output">Run your code to see its output.</pre>
+      <textarea id="stdin" placeholder="Input (stdin) for your program" spellcheck="false"></textarea>
+    </div>
+  </section>
+</main>
+<div id="toast" role="status"></div>
+<script>
+const token = location.hash.slice(1);
+const $ = (id) => document.getElementById(id);
+const MODES = { python: "python", java: "text/x-java", javascript: "javascript", cpp: "text/x-c++src", html: "htmlmixed" };
+let langs = {}, lang = "python", lastRun = null, saveTimer = null, previewTimer = null;
+
+async function api(path, body) {
+  const res = await fetch(path, {
+    method: body ? "POST" : "GET",
+    headers: { "X-Fixel-Token": token, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Fixel said ${res.status}`);
+  return data;
+}
+
+const cm = window.CodeMirror
+  ? CodeMirror.fromTextArea($("source"), {
+      lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false,
+      extraKeys: { "Cmd-Enter": run, "Ctrl-Enter": run, Tab: (ed) => ed.replaceSelection("    ") },
+    })
+  : null;  // offline: the plain textarea still works
+const getCode = () => (cm ? cm.getValue() : $("source").value);
+const setCode = (text) => (cm ? cm.setValue(text) : ($("source").value = text));
+if (!cm) $("source").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
+
+function toast(message) {
+  $("toast").textContent = message;
+  $("toast").classList.add("show");
+  setTimeout(() => $("toast").classList.remove("show"), 3000);
+}
+
+function showLang(name, code) {
+  lang = name;
+  lastRun = null;
+  $("lang").value = name;
+  $("file").textContent = langs[name].filename;
+  setCode(code);
+  if (cm) cm.setOption("mode", MODES[name]);
+  const runnable = langs[name].runnable;
+  $("run").disabled = !runnable;
+  $("preview").style.display = runnable ? "none" : "block";
+  $("runner").style.display = runnable ? "flex" : "none";
+  $("right-label").textContent = runnable ? "Output" : "Preview";
+  $("output").textContent = "Run your code to see its output.";
+  $("output").classList.remove("bad");
+  if (!runnable) updatePreview();
+}
+
+function updatePreview() { $("preview").srcdoc = getCode(); }
+
+function onEdit() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => api("/api/save", { lang, code: getCode() }).catch(() => {}), 1000);
+  if (!langs[lang].runnable) {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(updatePreview, 300);
+  }
+}
+if (cm) cm.on("change", onEdit); else $("source").addEventListener("input", onEdit);
+
+async function run() {
+  if (!langs[lang] || !langs[lang].runnable || $("run").disabled) return;
+  const code = getCode();
+  $("run").disabled = true;
+  $("output").classList.remove("bad");
+  $("output").textContent = "Running…";
+  try {
+    const r = await api("/api/run", { lang, code, stdin: $("stdin").value });
+    const status = r.exit_code === null ? "stopped" : `exit ${r.exit_code}`;
+    $("output").textContent = `${r.output.trimEnd() || "(no output)"}\n── ${status} · ${r.seconds.toFixed(1)}s`;
+    $("output").classList.toggle("bad", r.exit_code !== 0);
+    lastRun = r.error ? null : { code, output: r.output, exit_code: r.exit_code };
+  } catch (e) {
+    $("output").textContent = e.message;
+    $("output").classList.add("bad");
+  } finally {
+    $("run").disabled = false;
+  }
+}
+
+async function ask() {
+  const code = getCode();
+  const fresh = lastRun && lastRun.code === code;  // edited since the run? then the old output would mislead
+  try {
+    await api("/api/ask", {
+      lang, code, output: fresh ? lastRun.output : "", exit_code: fresh ? lastRun.exit_code : null, ran: !!fresh,
+    });
+    toast("Sent to Fixel. Switch to the terminal and press Enter.");
+  } catch (e) { toast(e.message); }
+}
+
+function download() {
+  const url = URL.createObjectURL(new Blob([getCode()], { type: "text/plain" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: langs[lang].filename });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+$("run").addEventListener("click", run);
+$("ask").addEventListener("click", ask);
+$("download").addEventListener("click", download);
+$("lang").addEventListener("change", async (e) => {
+  const next = e.target.value;
+  await api("/api/save", { lang, code: getCode() }).catch(() => {});
+  const data = await api(`/api/scratch?lang=${encodeURIComponent(next)}`);
+  showLang(next, data.code);
+});
+
+(async () => {
+  try {
+    const state = await api("/api/state");
+    for (const l of state.langs) {
+      langs[l.name] = l;
+      $("lang").append(new Option(l.label, l.name));
+    }
+    showLang(state.lang, state.code);
+  } catch (e) {
+    $("output").textContent = `${e.message} Open the playground from Fixel with /web.`;
+    $("runner").style.display = "flex";
+    $("preview").style.display = "none";
+  }
+})();
+</script>
+</body>
+</html>

@@ -27,6 +27,9 @@ fixel = "fixel.__main__:main"
 [tool.setuptools.packages.find]
 include = ["fixel*"]
 
+[tool.setuptools.package-data]
+"fixel.playground" = ["web/*.html"]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
