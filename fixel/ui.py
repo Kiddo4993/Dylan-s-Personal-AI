@@ -27,6 +27,7 @@ BADGES = {
     "math": "bold black on cyan",
     "doc": "bold black on yellow",
     "ui": "bold white on blue",
+    "web": "bold white on magenta",
     "general": "bold black on white",
 }
 ACTION_KEYS = (

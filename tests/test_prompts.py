@@ -28,3 +28,11 @@ def test_instructions_forbid_inventing_problems():
     system = build_system(learn=False)
     assert "Never invent an error" in system
     assert "ask what they need" in system
+
+
+def test_web_mode_is_offered_with_its_format():
+    system = build_system(learn=False)
+    assert "MODE: <error|math|doc|ui|web|general>" in system
+    assert "- web:" in system and "**Libraries**" in system
+    assert "exactly ONE ```html block" in system
+    assert "View Source" in system

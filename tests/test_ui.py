@@ -113,3 +113,9 @@ def test_pix_never_touches_the_words_and_only_pix_is_colored():
         assert line.plain[7] == " ", line.plain  # a gap after Pix's 7-cell face, always
         assert not line.style  # no colour on the whole line...
         assert line.spans[0].end == 7  # ...just on Pix's face
+
+
+def test_web_answers_get_their_own_badge():
+    from fixel.ui import BADGES
+
+    assert BADGES["web"] not in (BADGES["ui"], BADGES["general"])

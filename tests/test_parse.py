@@ -1,4 +1,4 @@
-from fixel.parse import Header, primary_fix, runnable_command, split_header
+from fixel.parse import Header, first_code_block, primary_fix, runnable_command, split_header
 
 KEY = "ModuleNotFoundError: No module named 'numpy'"
 REPLY = f"MODE: error\nKEY: {KEY}\n---\n**Cause:** wrong venv.\n"
@@ -61,3 +61,22 @@ def test_runnable_command_only_shell_blocks():
     body = "```python\nimport os\n```\n```zsh\n$ brew install jq\n$ jq --version\n```"
     assert runnable_command(body) == "brew install jq\njq --version"
     assert runnable_command("```diff\n-a\n+b\n```") is None
+
+
+def test_web_mode_header_is_kept():
+    header, _ = split_header("MODE: web\nKEY: Stripe pricing page\n---\nbody")
+    assert header == Header("web", "Stripe pricing page")
+
+
+def test_first_code_block_language_and_code():
+    body = "**Code:**\n```HTML\n<!doctype html>\n<p>hi</p>\n```\n```python\nx\n```"
+    assert first_code_block(body) == ("html", "<!doctype html>\n<p>hi</p>")
+
+
+def test_untagged_html_block_is_html():
+    assert first_code_block("```\n<html><body></body></html>\n```") == ("html", "<html><body></body></html>")
+
+
+def test_no_block_and_untagged_other_block():
+    assert first_code_block("Answer: 42") is None
+    assert first_code_block("```\nx = 1\n```") == ("", "x = 1")

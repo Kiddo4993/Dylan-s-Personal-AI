@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-MODES = ("error", "math", "doc", "ui", "general")
+MODES = ("error", "math", "doc", "ui", "web", "general")
 HEADER_MAX = 400  # give up waiting for `---` after this many characters
 
 _SEPARATOR = re.compile(r"^---[ \t]*$\n?", re.M)
@@ -64,3 +64,14 @@ def runnable_command(body: str) -> str | None:
             if command:
                 return command
     return None
+
+
+def first_code_block(body: str) -> tuple[str, str] | None:
+    """What ⌃P opens: the first code block as (language tag, code). Untagged HTML counts as html."""
+    fence = _FENCE.search(body)
+    if fence is None:
+        return None
+    lang, code = fence.group(1).lower(), fence.group(2).rstrip("\n")
+    if not lang and code.lstrip().lower().startswith(("<!doctype", "<html")):
+        lang = "html"
+    return lang, code
