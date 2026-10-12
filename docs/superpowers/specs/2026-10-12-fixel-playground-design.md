@@ -1,7 +1,7 @@
 # Fixel Playground and Web Mode: Design Spec
 
 **Date:** 2026-10-12
-**Status:** Section 1 approved in brainstorming; sections 2-6 written from agreed choices, pending written-spec review
+**Status:** Approved 2026-10-12. Plan: `docs/superpowers/plans/2026-10-12-fixel-playground.md`
 **Builds on:** `docs/superpowers/specs/2026-09-30-fixel-design.md`
 
 ## 1. Purpose
@@ -57,7 +57,7 @@ fixel/playground/
 |---|---|---|
 | `langs` | Pure data. Java: `java Main.java` (JDK 11+ single-file launch). C++: `g++ -std=c++17 -O2 main.cpp -o main` then `./main`. Python: `python3 main.py`. JS: `node main.js`. | nothing |
 | `runner` | Writes code to a fresh temp dir, runs build then run steps with `start_new_session=True`, kills the process group on timeout or cancel, caps output at 64 KB. | `langs` |
-| `scratch` | Keeps the last code per language (`scratch.py`, `Main.java`, `scratch.js`, `scratch.cpp`, `scratch.html`) and the last-used language. Starter templates when empty. | `langs` |
+| `scratch` | Keeps the last code per language (`main.py`, `Main.java`, `main.js`, `main.cpp`, `index.html`) and the last-used language. Starter templates when empty. | `langs` |
 | `attachment` | The one shape both front-ends hand to the app. | nothing |
 | `editor` | Terminal UI. Returns an `EditorResult(attachment: CodeAttachment \| None)` when it closes. | `runner`, `scratch`, `langs` |
 | `server` | Serves the page and API. Asks go to an `on_ask(CodeAttachment)` callback. | `runner`, `scratch`, `attachment` |
@@ -69,7 +69,7 @@ Changes to existing files:
 - `session.py`: `attach_code(att)`, `tray_code`; `build_user_turn` adds the attachment text and a default question.
 - `ui.py`: ⌃P in `ACTION_KEYS` as `"play"`; `web` badge (`bold white on magenta`); toolbar shows a code attachment; help text.
 - `app.py`: `/code`, `/web`, the `play` action, `attach_code()`, server lifecycle (stopped in `run()`'s `finally`).
-- `config.py`: `playground_timeout = 10` (seconds) and `playground_dir` (default `~/.fixel/playground`).
+- `config.py`: `playground_timeout = 10` (seconds) setting and a `playground_dir` property (`~/.fixel/playground`).
 
 ## 4. Behaviour
 
@@ -96,19 +96,20 @@ Default question when none is typed: `Why doesn't this work?` if the last run fa
 - Layout: code pane with line numbers and Pygments colours (top), output pane (bottom, ~8 lines, scrollable), status bar: `java · F5 run · F3 input · F2 language · ⌃A ask Fixel · Esc back`.
 - **F5** saves the scratch file and runs; the output pane shows `Running…` then the result and `exit 0 · 0.4s`. **⌃C** while running stops it.
 - **F3** toggles an Input pane; its text is passed as stdin (for `Scanner`/`input()`/CCC problems).
-- **⌃A** closes the editor and attaches code + last run output. **Esc** closes and saves without attaching.
+- **⌃A** closes the editor and attaches the code, plus the last run's output if the code hasn't changed since. **Esc** closes without attaching. Closing saves the scratch file only if the code was edited or run.
 - The editor runs in the same event loop as Fixel (`Application.run_async()`), so no threads.
 
 ### 4.3 Web playground (`/web`)
 
 - The first `/web` starts the server on a random free port with a random 32-byte token and runs `open http://127.0.0.1:<port>/#<token>`. Later `/web` calls reopen the same server. The token sits in the URL fragment, so it is never sent in requests the browser makes by itself.
-- Page: editor on the left (CodeMirror 6 from jsDelivr, pinned version; falls back to a `<textarea>` if offline), right pane switches between **Preview** (HTML) and **Output + Input** (other languages). Language picker, **Run** (⌘↵), **Ask Fixel**, **Download**. Light/dark follows the system.
+- Page: editor on the left (CodeMirror 5.65.16 from cdnjs with Subresource Integrity hashes; falls back to a `<textarea>` if offline), right pane switches between **Preview** (HTML) and **Output + Input** (other languages). Language picker, **Run** (⌘↵), **Ask Fixel**, **Download**. Light/dark follows the system.
 - HTML preview: `<iframe sandbox="allow-scripts" srcdoc=…>`, updated 300 ms after typing stops. No `allow-same-origin`, so the preview runs as an opaque origin and can't read the token or call the API.
 - API (JSON, all require `X-Fixel-Token`):
 
 | Endpoint | Body | Returns |
 |---|---|---|
-| `GET /api/state` | | `{lang, code}`: the pending ⌃P handoff, else last scratch |
+| `GET /api/state` | | `{lang, code, langs}`: the pending ⌃P handoff (once), else last scratch |
+| `GET /api/scratch?lang=` | | `{lang, code}` for the language picker |
 | `POST /api/run` | `{lang, code, stdin}` | `{exit_code, output, seconds}` |
 | `POST /api/ask` | `{lang, code, output, exit_code}` | `{ok: true}`; Fixel raises its window |
 | `POST /api/save` | `{lang, code}` | `{ok: true}` |
@@ -121,7 +122,7 @@ Default question when none is typed: `Why doesn't this work?` if the last run fa
 `first_code_block(case.answer)` picks the first fenced block:
 
 - `html`/`htm` (or a block starting with `<!doctype`/`<html`): load into the web playground (starting the server if needed) and open the browser.
-- `python`/`py`, `java`, `javascript`/`js`, `cpp`/`c++`: open the terminal editor with that code in the matching language. The scratch file is replaced only when the user runs or closes, so Esc right away leaves the old scratch alone.
+- `python`/`py`, `java`, `javascript`/`js`, `cpp`/`c++`: open the terminal editor with that code in the matching language. The scratch file is replaced only when the user edits or runs, so Esc right away leaves the old scratch alone.
 - `diff`, `bash`, other or none: `This answer has no code the playground can open.` (Shell commands stay with ⌃R.)
 
 ## 5. Web mode (screenshot a webpage)
