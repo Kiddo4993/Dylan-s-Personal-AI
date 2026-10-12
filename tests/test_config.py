@@ -41,3 +41,11 @@ def test_env_key_beats_keychain(monkeypatch):
 def test_provider_for_model():
     assert provider_for_model("gemini-2.5-flash") == "gemini"
     assert provider_for_model("claude-sonnet-5-5") == "anthropic"
+
+
+def test_playground_settings(tmp_path):
+    from fixel.config import load_config
+
+    (tmp_path / "config.toml").write_text("playground_timeout = 3\n")
+    cfg = load_config(tmp_path)
+    assert cfg.playground_timeout == 3 and cfg.playground_dir == tmp_path / "playground"

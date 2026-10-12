@@ -24,6 +24,7 @@ max_tokens = 16000
 animations = true               # Pix's thinking face and the startup moment
 gemini_fallbacks = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]   # tried in order when Gemini is busy
 slow_model_seconds = 20         # no words after this long? try the next Gemini model (⌃T allows 3x)
+playground_timeout = 10         # seconds a /code or /web run may take before Fixel stops it
 
 [models]
 sonnet = "claude-sonnet-5-5"
@@ -50,6 +51,7 @@ class Config:
     animations: bool = True
     gemini_fallbacks: list[str] = field(default_factory=lambda: ["gemini-3.5-flash", "gemini-3.5-flash-lite"])
     slow_model_seconds: float = 20.0
+    playground_timeout: float = 10.0
     models: dict[str, str] = field(default_factory=_default_models)
 
     @property
@@ -68,6 +70,10 @@ class Config:
     def about_me_path(self) -> Path:
         return self.home / "about-me.md"
 
+    @property
+    def playground_dir(self) -> Path:
+        return self.home / "playground"
+
 
 def fixel_home() -> Path:
     return Path(os.environ.get("FIXEL_HOME", Path.home() / ".fixel")).expanduser()
@@ -77,7 +83,7 @@ def load_config(home: Path | None = None) -> Config:
     cfg = Config(home=home or fixel_home())
     if cfg.config_path.exists():
         data = tomllib.loads(cfg.config_path.read_text())
-        for name in ("name", "default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "animations", "gemini_fallbacks", "slow_model_seconds"):
+        for name in ("name", "default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "animations", "gemini_fallbacks", "slow_model_seconds", "playground_timeout"):
             if name in data:
                 setattr(cfg, name, data[name])
         if "notes_dir" in data:
