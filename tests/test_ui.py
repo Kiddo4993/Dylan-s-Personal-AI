@@ -131,4 +131,4 @@ def test_toolbar_shows_attached_code():
 def test_help_lists_playground(console):
     UI(console).help()
     out = console.file.getvalue()
-    assert "⌃P" in out and "/code" in out and "/web" in out
+    assert "⌃P" in out and "/code" in out and "/ide" in out

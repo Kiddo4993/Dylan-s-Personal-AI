@@ -137,3 +137,25 @@ async def test_new_case_clears_attached_code(tmp_path, console):
     app.attach_code(CodeAttachment("python", "x"))
     await app.handle_action("new")
     assert app.session.code is None and app.ui.status.code == ""
+
+
+async def test_ide_command_opens_the_browser_ide(tmp_path, console):
+    app = make_app(tmp_path, console)
+    await app.handle_command("/ide")
+    (server,) = FakeServer.instances
+    assert server.started == 1 and app.opened_urls == [server.url] and server.handoffs == []
+
+
+async def test_ide_command_with_a_language_opens_that_language(tmp_path, console):
+    app = make_app(tmp_path, console)
+    app.scratch.save("java", "class Hello {}")
+    await app.handle_command("/ide java")
+    await app.handle_command("/ide HTML")
+    assert FakeServer.instances[0].handoffs[0] == ("java", "class Hello {}")
+    assert FakeServer.instances[0].handoffs[1][0] == "html"
+
+
+async def test_ide_command_rejects_unknown_language(tmp_path, console):
+    app = make_app(tmp_path, console)
+    await app.handle_command("/ide rust")
+    assert "Unknown language 'rust'" in console.file.getvalue() and FakeServer.instances == []

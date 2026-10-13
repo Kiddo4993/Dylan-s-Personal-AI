@@ -606,8 +606,12 @@ class FixelApp:
                 self.ui.info("HTML runs in the web playground: /web")
             else:
                 await self.open_editor(lang.name if lang else self.scratch.last_lang())
-        elif command == "/web":
-            self.open_web()
+        elif command in ("/ide", "/web"):
+            lang = resolve(arg) if arg else None
+            if arg and lang is None:
+                self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp, html.")
+            else:
+                self.open_web((lang.name, self.scratch.load(lang.name)) if lang else None)
         else:
             self.ui.warn(f"Unknown command {command}. Try /help.")
         return True
