@@ -189,3 +189,45 @@ async def test_shift_tab_dedents_the_current_line(tmp_path, pipe):
     pipe.send_text(SHIFT_TAB)
     await until(lambda: editor.code.text == "q")
     await finish(pipe, task)
+
+
+# ---- find and go to line
+
+CTRL_F, CTRL_G = "\x06", "\x07"
+
+
+async def test_ctrl_f_finds_each_match_in_turn_and_esc_only_closes_the_bar(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="a\nfoo\nbar FOO")
+    pipe.send_text(CTRL_F)
+    await until(lambda: editor.app.layout.has_focus(editor.bar))
+    pipe.send_text("foo" + ENTER)
+    await until(lambda: editor.code.buffer.cursor_position == 2)
+    pipe.send_text(ENTER)
+    await until(lambda: editor.code.buffer.cursor_position == 10)  # case doesn't matter
+    pipe.send_text(ENTER)
+    await until(lambda: editor.code.buffer.cursor_position == 2)  # wraps around
+    pipe.send_text(ESC)
+    await until(lambda: editor.bar_mode is None)
+    assert editor.app.layout.has_focus(editor.code) and not task.done()
+    await finish(pipe, task)
+
+
+async def test_find_with_no_match_says_so_and_stays_put(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="hello")
+    pipe.send_text(CTRL_F + "zzz" + ENTER)
+    await until(lambda: "no match" in editor.bar_prompt())
+    assert editor.code.buffer.cursor_position == 0
+    await finish(pipe, task)
+
+
+async def test_ctrl_g_goes_to_a_line(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="1\n2\n  three\n4\n5")
+    pipe.send_text(CTRL_G)
+    await until(lambda: editor.app.layout.has_focus(editor.bar))
+    pipe.send_text("3" + ENTER)
+    await until(lambda: editor.bar_mode is None)
+    assert editor.code.document.cursor_position_row == 2
+    assert editor.app.layout.has_focus(editor.code)
+    pipe.send_text(CTRL_G + "99" + ENTER)  # past the end: the last line
+    await until(lambda: editor.code.document.cursor_position_row == 4)
+    await finish(pipe, task)

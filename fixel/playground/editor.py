@@ -79,12 +79,16 @@ class Editor:
             text="F5 runs your code.", read_only=True, scrollbar=True, height=Dimension(preferred=8, max=12)
         )
         self._picked = RUNNABLE.index(lang)  # the sidebar's highlighted row while it has focus
+        self.bar_mode: str | None = None  # "find" or "line" while the one-line bar under the code is open
+        self._no_match = False
+        self.bar = TextArea(multiline=False, height=1, prompt=self.bar_prompt, accept_handler=self._bar_enter)
         self.sidebar = FormattedTextControl(
             self.sidebar_fragments, focusable=True, show_cursor=False, key_bindings=self._sidebar_bindings()
         )
         rule = lambda: Window(height=1, char="─", style="class:rule")  # noqa: E731
         main = HSplit([
             self.code,
+            ConditionalContainer(HSplit([rule(), self.bar]), filter=Condition(lambda: self.bar_mode is not None)),
             rule(),
             ConditionalContainer(HSplit([self.stdin, rule()]), filter=Condition(lambda: self.show_input)),
             self.output,
@@ -121,8 +125,47 @@ class Editor:
         where = f"Ln {doc.cursor_position_row + 1}, Col {doc.cursor_position_col + 1}"
         modified = " · modified" if self.code.text != self._saved else ""
         running = " · running… ⌃C stops" if self._running else ""
-        keys = "F5 run · F3 input · F4 files · ⌃A ask Fixel · Esc back"
+        keys = "F5 run · F3 input · F4 files · ⌃F find · ⌃G line · ⌃A ask Fixel · Esc back"
         return f" {LANGS[self.lang].label} · {where}{modified}{running}   {keys} "
+
+    def bar_prompt(self) -> str:
+        if self.bar_mode == "line":
+            return " Go to line: "
+        return " Find (no match): " if self._no_match else " Find: "
+
+    def _open_bar(self, mode: str) -> None:
+        self.bar_mode, self._no_match = mode, False
+        self.bar.text = ""
+        self.app.layout.focus(self.bar)
+
+    def _close_bar(self) -> None:
+        self.bar_mode = None
+        self.app.layout.focus(self.code)
+
+    def _bar_enter(self, buffer) -> bool:
+        """Enter in the bar. Find stays open so Enter again finds the next match; go-to-line closes."""
+        if self.bar_mode == "find":
+            self._no_match = not self._find_next(buffer.text)
+            return True
+        if buffer.text.strip().isdigit():
+            lines = self.code.text.split("\n")
+            row = min(max(int(buffer.text), 1), len(lines)) - 1
+            self.code.buffer.cursor_position = sum(len(line) + 1 for line in lines[:row])
+        self._close_bar()
+        return False
+
+    def _find_next(self, query: str) -> bool:
+        """Move the cursor to the next match after it (any case), wrapping to the top. False if none."""
+        if not query:
+            return False
+        text, needle = self.code.text.lower(), query.lower()
+        at = text.find(needle, self.code.buffer.cursor_position + 1)
+        if at < 0:
+            at = text.find(needle)
+        if at < 0:
+            return False
+        self.code.buffer.cursor_position = at
+        return True
 
     def _save(self) -> None:
         self.scratch.save(self.lang, self.code.text)
@@ -236,7 +279,21 @@ class Editor:
             self._picked = RUNNABLE.index(self.lang)
             event.app.layout.focus(self.code if on_sidebar else self.sidebar)
 
-        @kb.add("escape")  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
+        in_bar = has_focus(self.bar)
+
+        @kb.add("c-f")
+        def _(event) -> None:
+            self._open_bar("find")
+
+        @kb.add("c-g")
+        def _(event) -> None:
+            self._open_bar("line")
+
+        @kb.add("escape", filter=in_bar)
+        def _(event) -> None:
+            self._close_bar()
+
+        @kb.add("escape", filter=~in_bar)  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
         def _(event) -> None:
             self._close(attach=False)
 
