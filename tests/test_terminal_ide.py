@@ -154,3 +154,38 @@ async def test_tab_without_a_menu_still_indents(tmp_path, pipe):
     pipe.send_text(TAB)
     await until(lambda: editor.code.text == "    ")
     await finish(pipe, task)
+
+
+# ---- indentation
+
+SHIFT_TAB = "\x1b[Z"
+
+
+async def test_enter_keeps_indentation_and_indents_after_a_colon(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="if x:")
+    at_end(editor)
+    pipe.send_text(ENTER)
+    await until(lambda: editor.code.text == "if x:\n    ")
+    pipe.send_text("y" + ENTER)
+    await until(lambda: editor.code.text == "if x:\n    y\n    ")
+    await finish(pipe, task)
+
+
+async def test_enter_indents_after_an_opening_brace(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, lang="java", code="  class A {")
+    at_end(editor)
+    pipe.send_text(ENTER)
+    await until(lambda: editor.code.text == "  class A {\n      ")
+    await finish(pipe, task)
+
+
+async def test_shift_tab_dedents_the_current_line(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="a\n        z")
+    at_end(editor)
+    pipe.send_text(SHIFT_TAB)
+    await until(lambda: editor.code.text == "a\n    z")
+    assert editor.code.text[: editor.code.buffer.cursor_position] == "a\n    z"  # cursor stays put on the text
+    editor.code.buffer.text = "  q"
+    pipe.send_text(SHIFT_TAB)
+    await until(lambda: editor.code.text == "q")
+    await finish(pipe, task)

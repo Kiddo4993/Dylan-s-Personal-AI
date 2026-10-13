@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable
 
 from prompt_toolkit.application import Application
+from prompt_toolkit.document import Document
 from prompt_toolkit.filters import Condition, has_focus
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import ConditionalContainer, Float, FloatContainer, HSplit, Layout, VSplit, Window
@@ -33,6 +34,24 @@ class EditorResult:
     lang: str
     code: str
     attachment: CodeAttachment | None  # set when the user pressed ⌃A
+
+
+INDENT = "    "
+
+
+def next_line_indent(line: str, before_cursor: str) -> str:
+    """Indentation for a new line: the current line's, plus one level after a ':' or '{'."""
+    indent = line[: len(line) - len(line.lstrip(" \t"))]
+    return indent + INDENT if before_cursor.rstrip().endswith((":", "{")) else indent
+
+
+def dedented(document: Document) -> Document:
+    """The document with up to one indent level removed from the start of the cursor's line."""
+    line = document.current_line
+    remove = min(len(INDENT), len(line) - len(line.lstrip(" ")))
+    start = document.cursor_position - document.cursor_position_col
+    text = document.text[:start] + document.text[start + remove :]
+    return Document(text, max(start, document.cursor_position - remove))
 
 
 def format_result(result: RunResult) -> str:
@@ -233,15 +252,24 @@ class Editor:
             if buffer.complete_state:
                 buffer.complete_next()
             else:
-                buffer.insert_text("    ")
+                buffer.insert_text(INDENT)
+
+        @kb.add("s-tab", filter=in_code)
+        def _(event) -> None:
+            buffer = event.current_buffer
+            if buffer.complete_state:
+                buffer.complete_previous()
+            else:
+                buffer.document = dedented(buffer.document)
 
         @kb.add("enter", filter=in_code)
         def _(event) -> None:
             buffer = event.current_buffer
             state = buffer.complete_state
             buffer.complete_state = None
-            if state is None or state.current_completion is None:  # nothing picked: a normal new line
-                buffer.newline(copy_margin=False)
+            if state is None or state.current_completion is None:  # nothing picked: a new, indented line
+                doc = buffer.document
+                buffer.insert_text("\n" + next_line_indent(doc.current_line, doc.current_line_before_cursor))
 
         return kb
 
