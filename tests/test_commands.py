@@ -8,7 +8,7 @@ def complete(text):
 
 
 def test_every_shortcut_has_a_slash_command():
-    actions = {"deeper", "worked", "copy", "run", "save", "learn", "follow", "open", "new"}
+    actions = {"deeper", "worked", "copy", "run", "save", "play", "learn", "follow", "open", "new"}
     assert actions <= {c.action for c in COMMANDS if c.action}
     keys = [c.key for c in COMMANDS if c.key]
     assert len(keys) == len(set(keys)) == len(actions)

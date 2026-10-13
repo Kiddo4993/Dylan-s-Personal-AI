@@ -11,6 +11,7 @@ license = "MIT"
 dependencies = [
   "anthropic>=1.0",
   "google-genai>=1.0",
+  "openai>=1.0",
   "keyring>=25",
   "prompt_toolkit>=3.0.43",
   "rich>=13.7",
@@ -26,6 +27,9 @@ fixel = "fixel.__main__:main"
 
 [tool.setuptools.packages.find]
 include = ["fixel*"]
+
+[tool.setuptools.package-data]
+"fixel.playground" = ["web/*.html"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

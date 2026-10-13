@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .brain.base import Turn
 from .parse import Header
+from .playground.attachment import CodeAttachment
 
 MAX_TRAY = 5
 DEFAULT_QUESTION = "Figure this out."
@@ -32,6 +33,7 @@ class _Undo:
     screen_text: str
     tray: list[Path]
     follow_up: bool
+    code: CodeAttachment | None
 
 
 @dataclass
@@ -40,6 +42,7 @@ class Session:
     tray: list[Path] = field(default_factory=list)
     follow_up: bool = False  # attach the next tray to the current case instead of starting a new one
     learn: bool = False
+    code: CodeAttachment | None = None  # code from the playground, waiting to be asked about
     _undo: _Undo | None = field(default=None, repr=False)
     _retracted: tuple[Turn, str] | None = field(default=None, repr=False)
     _shot_text: dict[Path, str] = field(default_factory=dict, repr=False)
@@ -55,17 +58,26 @@ class Session:
         """Attach recognized text to a shot (recognition finishes after the shot lands in the tray)."""
         self._shot_text[path] = text
 
+    def attach_code(self, att: CodeAttachment) -> None:
+        """Put playground code in the tray (one at a time; a new one replaces the old)."""
+        self.code = att
+
     def tray_text(self) -> str:
-        return "\n".join(text for path in self.tray if (text := self._shot_text.get(path)))
+        """Searchable text waiting to be sent: what's on the tray's screenshots, plus any attached code and its output."""
+        texts = [text for path in self.tray if (text := self._shot_text.get(path))]
+        if self.code is not None:
+            texts += [part for part in (self.code.code.strip(), self.code.output.strip()) if part]
+        return "\n".join(texts)
 
     def starts_new_case(self) -> bool:
         """Would sending now start a new case (as opposed to following up on the current one)?"""
-        return not self.case.turns or (bool(self.tray) and not self.follow_up)
+        return not self.case.turns or ((bool(self.tray) or self.code is not None) and not self.follow_up)
 
     def new_case(self) -> None:
         self.case = Case()
         self.tray = []
         self.follow_up = False
+        self.code = None
 
     def build_user_turn(self, text: str, context: str = "") -> Turn:
         """Move the tray + text into the conversation. A tray sent after an answer
@@ -73,12 +85,15 @@ class Session:
         `context` (Fixel memory) goes to the model ahead of the question but isn't part of it."""
         case = self.case
         self._undo = _Undo(
-            case, len(case.turns), len(case.shots), case.question, case.screen_text, list(self.tray), self.follow_up
+            case, len(case.turns), len(case.shots), case.question, case.screen_text, list(self.tray), self.follow_up,
+            self.code,
         )
-        if self.tray and case.turns and not self.follow_up:
+        if (self.tray or self.code is not None) and case.turns and not self.follow_up:
             self.case = Case()
-        question = text.strip() or DEFAULT_QUESTION
-        sent = f"{context}\n\n{question}" if context else question
+        default = self.code.default_question() if self.code is not None else DEFAULT_QUESTION
+        question = text.strip() or default
+        attached = self.code.to_prompt_text() if self.code is not None else ""
+        sent = "\n\n".join(part for part in (context, attached, question) if part)
         turn = Turn("user", sent, [path.read_bytes() for path in self.tray])
         self.case.turns.append(turn)
         self.case.shots.extend(self.tray)
@@ -89,6 +104,7 @@ class Session:
             self.case.question = question
         self.tray = []
         self.follow_up = False
+        self.code = None
         return turn
 
     def rollback(self) -> None:
@@ -103,6 +119,7 @@ class Session:
         undo.case.screen_text = undo.screen_text
         self.tray = undo.tray
         self.follow_up = undo.follow_up
+        self.code = undo.code
         self._undo = None
 
     def retract_answer(self) -> bool:

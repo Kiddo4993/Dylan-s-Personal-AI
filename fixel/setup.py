@@ -41,17 +41,49 @@ def _check_gemini(key: str, model: str) -> str:
         return "[yellow]⚠ Couldn't reach Google to check the key (it's saved anyway).[/]"
 
 
+def _check_openai(key: str, model: str) -> str:
+    import openai
+
+    try:
+        client = openai.OpenAI(api_key=key, max_retries=1)
+        client.models.retrieve(model)
+        return f"[green]✔ Key works and {model} is available.[/]"
+    except openai.AuthenticationError:
+        return "[red]✖ OpenAI rejected this key.[/]"
+    except openai.NotFoundError:
+        return f"[yellow]⚠ Key works, but '{model}' wasn't found. Update the models section of ~/.fixel/config.toml.[/]"
+    except openai.APIConnectionError:
+        return "[yellow]⚠ Couldn't reach OpenAI to check the key (it's saved anyway).[/]"
+    except Exception as e:
+        return f"[yellow]⚠ Couldn't reach OpenAI to check the key: {e}[/]"
+
+
+PROVIDERS = (
+    ("anthropic", "Anthropic (Claude)", "sonnet", "https://console.anthropic.com/settings/keys", _check_anthropic),
+    ("gemini", "Google Gemini (optional)", "gemini", "https://aistudio.google.com/apikey", _check_gemini),
+    ("openai", "OpenAI (optional)", "gpt", "https://platform.openai.com/api-keys", _check_openai),
+)
+
+
+def check_api_key(vendor: str, key: str, model: str) -> str:
+    checks = {
+        "anthropic": _check_anthropic,
+        "gemini": _check_gemini,
+        "openai": _check_openai,
+    }
+    check = checks.get(vendor)
+    if check is None:
+        return f"[yellow]No automated check for '{vendor}'. Key is saved.[/]"
+    return check(key, model)
+
+
 def run_setup(cfg: Config, console: Console | None = None) -> None:
     console = console or Console()
     console.rule("[bold cyan]Fixel setup")
     if write_default_config(cfg):
         console.print(f"Created {cfg.config_path}")
 
-    providers = (
-        ("anthropic", "Anthropic (Claude)", "sonnet", "https://console.anthropic.com/settings/keys", _check_anthropic),
-        ("gemini", "Google Gemini (optional)", "gemini", "https://aistudio.google.com/apikey", _check_gemini),
-    )
-    for vendor, label, alias, url, check in providers:
+    for vendor, label, alias, url, check in PROVIDERS:
         key = get_api_key(vendor)
         console.print(f"\n[bold]{label}[/]: key {'saved' if key else 'not set'}. Get one at {url}")
         entered = getpass.getpass("Paste key (hidden; press Enter to keep/skip): ").strip()
@@ -60,7 +92,8 @@ def run_setup(cfg: Config, console: Console | None = None) -> None:
             key = entered
             console.print("Saved to the macOS Keychain.")
         if key:
-            console.print(check(key, cfg.models[alias]))
+            model = cfg.models.get(alias, alias)
+            console.print(check(key, model))
 
     app_name = permissions.host_app()
     console.print(f"\n[bold]Permissions[/] (macOS grants these to {app_name}):")

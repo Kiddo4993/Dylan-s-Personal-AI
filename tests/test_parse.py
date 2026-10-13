@@ -1,4 +1,4 @@
-from fixel.parse import Header, primary_fix, runnable_command, split_header
+from fixel.parse import Header, first_code_block, primary_fix, runnable_command, split_header
 
 KEY = "ModuleNotFoundError: No module named 'numpy'"
 REPLY = f"MODE: error\nKEY: {KEY}\n---\n**Cause:** wrong venv.\n"
@@ -67,3 +67,22 @@ def test_writing_mode_is_recognized():
     header, body = split_header("MODE: writing\nKEY: The Great Gatsby thesis\n---\n**Thesis:** arguable.")
     assert header == Header("writing", "The Great Gatsby thesis")
     assert body == "**Thesis:** arguable."
+
+
+def test_web_mode_header_is_kept():
+    header, _ = split_header("MODE: web\nKEY: Stripe pricing page\n---\nbody")
+    assert header == Header("web", "Stripe pricing page")
+
+
+def test_first_code_block_language_and_code():
+    body = "**Code:**\n```HTML\n<!doctype html>\n<p>hi</p>\n```\n```python\nx\n```"
+    assert first_code_block(body) == ("html", "<!doctype html>\n<p>hi</p>")
+
+
+def test_untagged_html_block_is_html():
+    assert first_code_block("```\n<html><body></body></html>\n```") == ("html", "<html><body></body></html>")
+
+
+def test_no_block_and_untagged_other_block():
+    assert first_code_block("Answer: 42") is None
+    assert first_code_block("```\nx = 1\n```") == ("", "x = 1")

@@ -41,7 +41,7 @@ async def test_fake_provider_streams_and_records():
 
 def test_make_provider_unknown_alias(tmp_path):
     with pytest.raises(ProviderError, match="Unknown model"):
-        make_provider("gpt", Config(home=tmp_path))
+        make_provider("nope", Config(home=tmp_path))
 
 
 def test_make_provider_missing_key(tmp_path, monkeypatch):
@@ -52,11 +52,14 @@ def test_make_provider_missing_key(tmp_path, monkeypatch):
 
 
 def test_make_provider_picks_vendor(tmp_path, monkeypatch):
+    from fixel.brain.openai import OpenAIProvider
     monkeypatch.setattr(brain, "get_api_key", lambda vendor: f"key-{vendor}")
     cfg = Config(home=tmp_path)
     opus = make_provider("opus", cfg)
     assert isinstance(opus, ClaudeProvider) and opus.name == "claude-opus-5-5"
     assert isinstance(make_provider("gemini", cfg), GeminiProvider)
+    gpt = make_provider("gpt", cfg)
+    assert isinstance(gpt, OpenAIProvider) and gpt.name == "gpt-4o" 
 
 
 def test_gemini_config_disables_automatic_function_calling():

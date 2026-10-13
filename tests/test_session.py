@@ -1,4 +1,5 @@
 from fixel.parse import Header
+from fixel.playground.attachment import CodeAttachment
 from fixel.session import MAX_TRAY, Session
 
 
@@ -166,3 +167,46 @@ def test_rollback_restores_screen_text(tmp_path):
     s.build_user_turn("q")
     s.rollback()
     assert s.case.screen_text == "" and s.tray_text() == "Boom"
+
+
+FAILED = CodeAttachment("python", "print(x)", output="NameError: x", exit_code=1, ran=True)
+
+
+def test_code_attachment_is_sent_with_default_question():
+    s = Session()
+    s.attach_code(FAILED)
+    assert s.starts_new_case()
+    turn = s.build_user_turn("")
+    assert turn.text.startswith("[Code from Fixel playground · python]")
+    assert turn.text.endswith("NameError: x\n\nWhy doesn't this work?")
+    assert s.code is None and s.case.question == "Why doesn't this work?"
+    assert "NameError: x" in s.case.screen_text and "print(x)" in s.case.screen_text
+
+
+def test_code_attachment_with_memory_and_typed_question():
+    s = Session()
+    s.attach_code(CodeAttachment("java", "class A {}"))
+    turn = s.build_user_turn("is this ok?", context="[Fixel memory]")
+    assert turn.text.startswith("[Fixel memory]\n\n[Code from Fixel playground · java]")
+    assert turn.text.endswith("```\n\nis this ok?")
+
+
+def test_code_after_an_answer_starts_a_new_case_and_rollback_restores_it():
+    s = Session()
+    s.build_user_turn("hi")
+    answer(s)
+    first = s.case
+    s.attach_code(FAILED)
+    assert s.starts_new_case()
+    s.build_user_turn("")
+    assert s.case is not first
+    s.rollback()
+    assert s.case is first and s.code == FAILED
+
+
+def test_tray_text_includes_attached_code_and_new_case_clears_it(tmp_path):
+    s = Session()
+    s.attach_code(FAILED)
+    assert "print(x)" in s.tray_text() and "NameError" in s.tray_text()
+    s.new_case()
+    assert s.code is None and s.tray_text() == ""

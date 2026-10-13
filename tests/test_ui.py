@@ -143,3 +143,22 @@ def test_every_mode_has_a_badge_and_a_color():
 
     assert set(BADGES) == set(MODES)
     assert set(MODE_COLORS) == set(MODES)
+
+
+def test_web_answers_get_their_own_badge():
+    from fixel.ui import BADGES
+
+    assert BADGES["web"] not in (BADGES["ui"], BADGES["general"])
+
+
+def test_toolbar_shows_attached_code():
+    text = toolbar_text(Status(code="Java"))
+    assert text.startswith("📝 Java code in tray") and "⏎ ask" in text
+    both = toolbar_text(Status(tray=1, code="Python"))
+    assert both.startswith("📸 1 shot in tray · 📝 Python code in tray")
+
+
+def test_help_lists_playground(console):
+    UI(console).help()
+    out = console.file.getvalue()
+    assert "/play" in out and "Ctrl+P" in out and "/code" in out and "/ide" in out

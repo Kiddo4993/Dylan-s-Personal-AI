@@ -10,6 +10,7 @@ Fixel recognizes what you captured and answers in the format that fits:
 | a math or homework problem | numbered steps and a final `Answer:` |
 | an email, doc, or spreadsheet | a short summary plus a ready-to-use draft or formula |
 | a confusing app screen | exact click-by-click steps |
+| a webpage or design | its fonts, colours, layout and likely libraries, plus one HTML file that recreates it (⌃P opens it live) |
 
 **What sets it apart**
 
@@ -37,7 +38,7 @@ fixel setup
 ```
 
 It will:
-1. Ask for your **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com/settings/keys)) and, optionally, a **Gemini key** ([aistudio.google.com](https://aistudio.google.com/apikey)). Keys go into the macOS Keychain, never into a file.
+1. Ask for your **Anthropic API key** ([console.anthropic.com](https://console.anthropic.com/settings/keys)) and, optionally, a **Gemini key** ([aistudio.google.com](https://aistudio.google.com/apikey)) or **OpenAI key** ([platform.openai.com](https://platform.openai.com/api-keys)). Keys go into the macOS Keychain, never into a file.
 2. Check that the key works and the model exists.
 3. Open System Settings for **Input Monitoring** (the hotkey) and **Screen Recording** (screenshots). Switch Terminal on in both, then quit and reopen Terminal.
 
@@ -60,10 +61,19 @@ fixel --here    # runs in the current terminal instead
 | `/follow` | add the tray to this case instead of starting a new one |
 | `/remember <fact>` · `/memory` · `/forget <n>` | teach Fixel about you · list · remove |
 | `/cases <words>` · `/open [n]` | search past cases · show one |
-| `/new` · `/model sonnet\|opus\|gemini` · `/help` · `/exit` | new case · switch model · help · close Fixel |
+| `/play` | open the answer's code in the playground |
+| `/ide [language]` · `/code [python\|java\|js\|cpp]` | browser IDE · terminal editor (see Playground) |
+| `/new` · `/model sonnet\|opus\|gemini\|gpt` · `/api [provider] [key]` · `/help` · `/exit` | new case · switch model · set an API key · help · close Fixel |
 | Ctrl+C | stop an answer that's streaming |
 
-Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, Ctrl+G `/worked`, Ctrl+Y `/copy`, Ctrl+R `/run`, Ctrl+S `/save`, Ctrl+N `/new`, Ctrl+F `/follow`, Ctrl+L `/learn`, Ctrl+O `/open`), listed at the bottom of `/help`.
+Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, Ctrl+G `/worked`, Ctrl+Y `/copy`, Ctrl+R `/run`, Ctrl+S `/save`, Ctrl+N `/new`, Ctrl+F `/follow`, Ctrl+L `/learn`, Ctrl+O `/open`, Ctrl+P `/play`), listed at the bottom of `/help`.
+
+## Playground
+
+- `/code [python|java|js|cpp]` opens a full-screen editor: **F5** run · **F3** input (stdin) · **F2** language · **⌃A** ask Fixel about the code and its output · **Esc** back.
+- `/ide [language]` opens the IDE in your browser (the VS Code editor): live HTML preview, a Run button for the same four languages, and **Ask Fixel**. `/web` does the same.
+- **`/play`** (Ctrl+P) opens an answer's code: HTML in the browser, everything else in `/code`. Nothing runs until you press Run.
+- Code runs on your Mac with your permissions (it's a scratchpad, not a sandbox). Runs stop after `playground_timeout` seconds (default 10). Your scratch code lives in `~/.fixel/playground/`.
 
 ## Customize
 
@@ -72,7 +82,7 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 
 ## Privacy & cost
 
-Screenshots go only to the model provider you've selected (Anthropic or Google). The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
+Screenshots go only to the model provider you've selected (Anthropic, Google, or OpenAI). The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
 
 ## Develop
 

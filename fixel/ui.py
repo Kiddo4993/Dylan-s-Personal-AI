@@ -30,6 +30,7 @@ BADGES = {
     "doc": "bold black on yellow",
     "writing": "bold white on magenta",
     "ui": "bold white on blue",
+    "web": "bold black on green",
     "general": "bold black on white",
 }
 ACTION_KEYS = tuple((command.key, command.action) for command in COMMANDS if command.key)
@@ -55,6 +56,7 @@ class Status:
 
     tray: int = 0
     follow_up: bool = False
+    code: str = ""  # label of the attached playground code's language
     hotkey_ok: bool = True
     flash: str = ""
     flash_until: float = 0.0
@@ -67,10 +69,15 @@ class Status:
 def toolbar_text(status: Status) -> str:
     if status.flash and time.monotonic() < status.flash_until:
         return status.flash
-    if status.tray:
-        plural = "" if status.tray == 1 else "s"
+    if status.tray or status.code:
+        parts = []
+        if status.tray:
+            plural = "" if status.tray == 1 else "s"
+            parts.append(f"📸 {status.tray} shot{plural} in tray")
+        if status.code:
+            parts.append(f"📝 {status.code} code in tray")
         follow = "adding to this case (/follow to undo)" if status.follow_up else "/follow to add to this case"
-        return f"📸 {status.tray} shot{plural} in tray · ⏎ ask · ⌥⌥ add more · {follow}"
+        return " · ".join(parts) + f" · ⏎ ask · ⌥⌥ add more · {follow}"
     hotkey = "⌥⌥ screenshot" if status.hotkey_ok else "⚠ hotkey off (run fixel setup)"
     return f"{hotkey} · / for commands · /deeper · /copy · /run · /new"
 
@@ -133,6 +140,14 @@ class UI:
                 return ""
             except EOFError:
                 return None
+
+    async def ask_input(self, question: str, *, is_password: bool = False, default: str = "") -> str:
+        with patch_stdout(raw=True):
+            try:
+                reply = await PromptSession().prompt_async(question, is_password=is_password, default=default)
+                return reply.strip()
+            except (KeyboardInterrupt, EOFError):
+                return ""
 
     async def confirm(self, question: str) -> bool:
         try:
@@ -224,6 +239,9 @@ class UI:
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
         self.console.print("[dim]/deeper think harder · /worked it worked · /copy · /run · /save · /new[/]")
+
+    def playground_hint(self, where: str) -> None:
+        self.console.print(f"[dim]/play opens this code in the {where}[/]")
 
     def show_command(self, cmd: str) -> None:
         self.console.print(Panel(Syntax(cmd, "bash", theme="monokai", word_wrap=True), title="Run this?", border_style="yellow"))
