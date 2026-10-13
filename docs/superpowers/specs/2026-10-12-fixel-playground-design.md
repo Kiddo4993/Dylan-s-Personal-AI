@@ -102,7 +102,7 @@ Default question when none is typed: `Why doesn't this work?` if the last run fa
 ### 4.3 Web playground (`/web`)
 
 - The first `/web` starts the server on a random free port with a random 32-byte token and runs `open http://127.0.0.1:<port>/#<token>`. Later `/web` calls reopen the same server. The token sits in the URL fragment, so it is never sent in requests the browser makes by itself.
-- Page: editor on the left (CodeMirror 5.65.16 from cdnjs with Subresource Integrity hashes; falls back to a `<textarea>` if offline), right pane switches between **Preview** (HTML) and **Output + Input** (other languages). Language picker, **Run** (⌘↵), **Ask Fixel**, **Download**. Light/dark follows the system.
+- Page: editor on the left (Monaco 0.52.2 from cdnjs; its loader, core script and stylesheet carry Subresource Integrity hashes; falls back to a `<textarea>` if offline). Type: Silkscreen (wordmark), Schibsted Grotesk (UI), Fragment Mono (code). The result pane is drawn as a screenshot selection: violet corner brackets and a live `width × height` readout, right pane switches between **Preview** (HTML) and **Output + Input** (other languages). Language picker, **Run** (⌘↵), **Ask Fixel**, **Download**. Light/dark follows the system.
 - HTML preview: `<iframe sandbox="allow-scripts" srcdoc=…>`, updated 300 ms after typing stops. No `allow-same-origin`, so the preview runs as an opaque origin and can't read the token or call the API.
 - API (JSON, all require `X-Fixel-Token`):
 

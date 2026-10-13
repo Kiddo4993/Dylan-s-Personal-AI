@@ -4,90 +4,197 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fixel Playground</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" integrity="sha384-zaeBlB/vwYsDRSlFajnDd7OydJ0cWk+c2OWybl3eSUf6hW2EbhlCsQPqKr3gkznT" crossorigin="anonymous">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" integrity="sha384-ZYmwuq4n2gOcNxMSiJ6jyTj+BbIrilr7p6dlq6q5nmSWKmsH9UU4K1qqjycMkfmR" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js" integrity="sha384-Xy+2exU6lBoT4OpUOtnQb+cUpn+nlJQEHvRobWVtwz6wIsw4oNoO7xyd/l8rYgMy" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/clike/clike.min.js" integrity="sha384-o9m634t2Hy35pPNKd9Xe16ntbSw11jCOuKPDrzQGXI8k87L2JZthaA3rwmJjnF7Z" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" integrity="sha384-g0o+WW9mdIxA7LaaCKTkRm0M5TVT+Bb4s9eocxPsI2G0Xm0POG9iD6G6qP1IIsfS" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/xml/xml.min.js" integrity="sha384-xPpkMo5nDgD98fIcuRVYhxkZV6/9Y4L8s3p0J5c4MxgJkyKJ8BJr+xfRkq7kn6Tw" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js" integrity="sha384-fpeIC2FZuPmw7mIsTvgB5BNc8QVxQC/nWg2W+CgPYOAiBiYVuHe2E8HiTWHBMIJQ" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js" integrity="sha384-xYIbc5F55vPi7pb/lUnFj3wu24HlpAMZdtBHkNrb2YhPzJV3pX7+eqXT2PXSNMrw" crossorigin="anonymous"></script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238B7CFF' stroke-width='2'%3E%3Cpath d='M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Schibsted+Grotesk:wght@400;500;600&family=Silkscreen&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.css" integrity="sha384-06yHXpYRlHEPaR4AS0fB/W+lMN09Zh5e1XMtfkNQdHV38OlhfkOEW5M+pCj3QskC" crossorigin="anonymous">
 <style>
   :root {
-    --bg: #f6f5f2; --panel: #ffffff; --text: #1d1d1f; --muted: #6e6e73; --line: #e2e0da;
-    --accent: #2f9e6b; --accent-text: #ffffff; --bad: #c4352b; --code-bg: #fbfbfa;
-    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --paper: #ecebf3;   /* page */
+    --sheet: #fafafd;   /* panes */
+    --ink: #1e1b33;
+    --muted: #6b6884;
+    --rule: #d9d7e6;
+    --select: #8b7cff;  /* Pix violet: only for things that are selected */
+    --sky: #5aa9ff;     /* the screenshot-selection tint */
+    --ok: #1f8a5b;
+    --bad: #c8323c;
+    --ui: "Schibsted Grotesk", system-ui, sans-serif;
+    --code: "Fragment Mono", ui-monospace, Menlo, monospace;
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #141416; --panel: #1c1c1f; --text: #ececee; --muted: #9a9aa0; --line: #2c2c31;
-      --accent: #3fbf86; --accent-text: #0d1f17; --bad: #ff6b5e; --code-bg: #18181b;
+      --paper: #15131f; --sheet: #1c1a29; --ink: #eceaf6; --muted: #9d99b5; --rule: #2e2b40;
+      --select: #a99bff; --ok: #5fd38d; --bad: #ff6b6b;
+      color-scheme: dark;
     }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, sans-serif;
-         display: flex; flex-direction: column; }
-  header { display: flex; gap: 8px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--line);
-           flex-wrap: wrap; }
-  header h1 { font-size: 15px; margin: 0 auto 0 0; letter-spacing: .02em; }
-  header h1 span { color: var(--accent); }
-  select, button { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line);
-                   border-radius: 8px; padding: 6px 12px; cursor: pointer; }
-  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); font-weight: 600; }
-  button:disabled { opacity: .5; cursor: default; }
-  main { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-height: 0; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font: 400 14px/1.45 var(--ui);
+    display: grid; grid-template-rows: auto minmax(0, 1fr);
+  }
+  :focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
+
+  /* ---- top bar */
+  header {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 10px 20px; border-bottom: 1px solid var(--rule);
+  }
+  .mark { display: flex; align-items: baseline; gap: 10px; margin: 0; font-size: inherit; font-weight: 400; }
+  .mark b {
+    font: 400 15px/1 Silkscreen, var(--ui); letter-spacing: .04em; position: relative; padding: 5px 8px;
+  }
+  .mark b::before, .mark b::after {
+    content: ""; position: absolute; width: 6px; height: 6px; border: 2px solid var(--select);
+  }
+  .mark b::before { top: 0; left: 0; border-right: 0; border-bottom: 0; }
+  .mark b::after { bottom: 0; right: 0; border-left: 0; border-top: 0; }
+  .mark span { color: var(--muted); }
+
+  fieldset#lang { display: flex; margin: 0; padding: 2px; border: 1px solid var(--rule); border-radius: 7px; background: var(--sheet); }
+  fieldset#lang legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  #lang label { position: relative; }
+  #lang input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  #lang span { display: block; padding: 4px 11px; border-radius: 5px; color: var(--muted); }
+  #lang input:checked + span { background: var(--select); color: #fff; }
+  #lang input:focus-visible + span { outline: 2px solid var(--select); outline-offset: 1px; }
+  #lang label:hover input:not(:checked) + span { color: var(--ink); }
+
+  .actions { display: flex; gap: 8px; margin-left: auto; }
+  button { white-space: nowrap; font: 500 14px/1 var(--ui); border-radius: 7px; padding: 8px 14px; cursor: pointer; color: var(--ink); background: transparent; border: 1px solid var(--rule); }
+  button:hover { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: default; }
+  #run { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  #run kbd { font: inherit; opacity: .6; margin-left: 6px; }
+  #download { border-color: transparent; color: var(--muted); }
+  #download:hover { color: var(--ink); }
+
+  /* ---- panes */
+  main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); min-height: 0; }
   .pane { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-  .pane + .pane { border-left: 1px solid var(--line); }
-  .label { font-size: 12px; color: var(--muted); padding: 6px 16px; border-bottom: 1px solid var(--line); }
-  #source, .CodeMirror { flex: 1; height: 100%; width: 100%; font: 13px/1.5 var(--mono); background: var(--code-bg);
-                         color: var(--text); border: 0; padding: 8px; resize: none; }
-  .CodeMirror-gutters { background: var(--code-bg); border-right: 1px solid var(--line); }
-  .CodeMirror-cursor { border-left-color: var(--text); }
-  .editor-wrap { flex: 1; min-height: 0; display: flex; }
-  iframe { flex: 1; border: 0; background: #fff; width: 100%; }
-  #runner { flex: 1; display: none; flex-direction: column; min-height: 0; }
-  #output { flex: 1; margin: 0; padding: 12px 16px; overflow: auto; font: 13px/1.5 var(--mono); white-space: pre-wrap; }
-  #output.bad { color: var(--bad); }
-  #stdin { height: 80px; font: 13px/1.5 var(--mono); background: var(--code-bg); color: var(--text); border: 0;
-           border-top: 1px solid var(--line); padding: 8px 16px; resize: vertical; }
-  #toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text);
-           color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
-  #toast.show { opacity: 1; }
+  .pane + .pane { border-left: 1px solid var(--rule); }
+  .file { padding: 9px 20px; color: var(--muted); border-bottom: 1px solid var(--rule); }
+  .code { flex: 1; min-height: 0; position: relative; background: var(--sheet); }
+  #editor { position: absolute; inset: 0; }
+  #source {
+    position: absolute; inset: 0; width: 100%; height: 100%; resize: none; border: 0; padding: 12px 20px;
+    font: 13px/1.6 var(--code); color: var(--ink); background: var(--sheet); tab-size: 4;
+  }
+  .ready #source { display: none; }
+
+  /* The one loud thing: the right pane is a live screenshot selection. */
+  .shot { flex: 1; min-height: 0; position: relative; margin: 18px 20px 22px; display: flex; }
+  .shot i { position: absolute; width: 16px; height: 16px; border: 0 solid var(--select); transition: transform .22s cubic-bezier(.2, .8, .2, 1); }
+  .shot i:nth-of-type(1) { top: -6px; left: -6px; border-width: 2px 0 0 2px; }
+  .shot i:nth-of-type(2) { top: -6px; right: -6px; border-width: 2px 2px 0 0; }
+  .shot i:nth-of-type(3) { bottom: -6px; right: -6px; border-width: 0 2px 2px 0; }
+  .shot i:nth-of-type(4) { bottom: -6px; left: -6px; border-width: 0 0 2px 2px; }
+  .shot.focus i:nth-of-type(1) { transform: translate(-7px, -7px); }
+  .shot.focus i:nth-of-type(2) { transform: translate(7px, -7px); }
+  .shot.focus i:nth-of-type(3) { transform: translate(7px, 7px); }
+  .shot.focus i:nth-of-type(4) { transform: translate(-7px, 7px); }
+  .size {
+    position: absolute; right: 12px; bottom: -11px; padding: 2px 7px; border-radius: 4px;
+    background: var(--select); color: #fff; font: 500 11px/1.4 var(--ui); font-variant-numeric: tabular-nums;
+  }
+  iframe { flex: 1; width: 100%; border: 0; background: #fff; }
+  #runner { flex: 1; display: none; flex-direction: column; min-height: 0; background: var(--sheet); }
+  #output { flex: 1; margin: 0; padding: 14px 16px; overflow: auto; font: 13px/1.6 var(--code); white-space: pre-wrap; }
+  #output:empty::before { content: "Press Run to see what your program prints."; color: var(--muted); font-family: var(--ui); }
+  #status { margin: 0; padding: 0 16px 12px; color: var(--muted); min-height: 1.45em; }
+  #status.bad { color: var(--bad); }
+  #status.ok { color: var(--ok); }
+  .input { display: none; flex-direction: column; gap: 6px; padding: 0 20px 18px; }
+  .input label { color: var(--muted); }
+  #stdin {
+    height: 84px; resize: vertical; border: 1px solid var(--rule); border-radius: 7px; padding: 8px 10px;
+    font: 13px/1.5 var(--code); color: var(--ink); background: var(--sheet);
+  }
+  .runnable #preview, .runnable .size { display: none; }
+  body:not(.runnable) #run { display: none; }  /* HTML updates live; there's nothing to run */
+  .runnable #runner, .runnable .input { display: flex; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translate(-50%, 8px); opacity: 0;
+    background: var(--ink); color: var(--paper); padding: 9px 14px; border-radius: 7px;
+    transition: opacity .18s, transform .18s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
   @media (max-width: 760px) {
-    main { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
-    .pane + .pane { border-left: 0; border-top: 1px solid var(--line); }
+    header { gap: 10px 14px; padding: 10px 16px; }
+    .actions { margin-left: 0; width: 100%; }
+    #lang span { padding: 4px 8px; }
+    #download .name { display: none; }
+    main { grid-template-columns: 1fr; grid-template-rows: minmax(260px, 1fr) minmax(320px, 1fr); }
+    .pane + .pane { border-left: 0; border-top: 1px solid var(--rule); }
+    .file { padding: 8px 16px; }
+    .shot { margin: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .shot i, #toast { transition: none; }
   }
 </style>
 </head>
 <body>
 <header>
-  <h1><span>●</span> Fixel Playground</h1>
-  <select id="lang" aria-label="Language"></select>
-  <button id="run" class="primary" title="⌘↵">Run</button>
-  <button id="ask">Ask Fixel</button>
-  <button id="download">Download</button>
+  <h1 class="mark"><b>FIXEL</b><span>playground</span></h1>
+  <fieldset id="lang"><legend>Language</legend></fieldset>
+  <div class="actions">
+    <button id="run" type="button">Run<kbd>⌘↵</kbd></button>
+    <button id="ask" type="button">Ask Fixel</button>
+    <button id="download" type="button">Download</button>
+  </div>
 </header>
 <main>
-  <section class="pane">
-    <div class="label" id="file">main.py</div>
-    <div class="editor-wrap"><textarea id="source" spellcheck="false"></textarea></div>
+  <section class="pane" aria-label="Code">
+    <div class="file" id="file">main.py</div>
+    <div class="code">
+      <div id="editor"></div>
+      <textarea id="source" spellcheck="false" aria-label="Code"></textarea>
+    </div>
   </section>
-  <section class="pane">
-    <div class="label" id="right-label">Preview</div>
-    <iframe id="preview" sandbox="allow-scripts" title="Preview"></iframe>
-    <div id="runner">
-      <pre id="output">Run your code to see its output.</pre>
-      <textarea id="stdin" placeholder="Input (stdin) for your program" spellcheck="false"></textarea>
+  <section class="pane" aria-label="Result">
+    <div class="file" id="right-label">Preview</div>
+    <div class="shot" id="shot">
+      <i></i><i></i><i></i><i></i>
+      <iframe id="preview" sandbox="allow-scripts" title="Preview of your page"></iframe>
+      <div id="runner">
+        <pre id="output" aria-live="polite"></pre>
+        <p id="status"></p>
+      </div>
+      <span class="size" id="size" aria-hidden="true"></span>
+    </div>
+    <div class="input">
+      <label for="stdin">Input your program reads (input(), Scanner, cin)</label>
+      <textarea id="stdin" spellcheck="false"></textarea>
     </div>
   </section>
 </main>
 <div id="toast" role="status"></div>
+
+<script>
+  // Monaco's web worker must come from the CDN, which a page can't start directly; a data: URL proxies it.
+  const MONACO = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min";
+  window.MonacoEnvironment = {
+    getWorkerUrl: () => "data:text/javascript;charset=utf-8," + encodeURIComponent(
+      `self.MonacoEnvironment = { baseUrl: "${MONACO}/" }; importScripts("${MONACO}/vs/base/worker/workerMain.js");`),
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.js" integrity="sha384-pHG02SG8pId94Np3AbPmBEJ1yPqaH0IkJGLSNGXYmuGhkazT8Lr/57WYpbkGjJtu" crossorigin="anonymous"></script>
+<script>if (window.require) require.config({ paths: { vs: MONACO + "/vs" } });</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.js" integrity="sha384-fj9z+NUc93I3woCCy5IRQfrQ8Amu1E27tllwgb5gz3d9Vr1ymS13xcF6two3e4KH" crossorigin="anonymous"></script>
 <script>
 const token = location.hash.slice(1);
 const $ = (id) => document.getElementById(id);
-const MODES = { python: "python", java: "text/x-java", javascript: "javascript", cpp: "text/x-c++src", html: "htmlmixed" };
-let langs = {}, lang = "python", lastRun = null, saveTimer = null, previewTimer = null;
+const MODES = { python: "python", java: "java", javascript: "javascript", cpp: "cpp", html: "html" };
+let langs = {}, lang = "python", lastRun = null, saveTimer = null, previewTimer = null, editor = null;
+let loading = false;  // true while code is put in the editor, so that doesn't count as an edit
 
 async function api(path, body) {
   const res = await fetch(path, {
@@ -96,46 +203,123 @@ async function api(path, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `Fixel said ${res.status}`);
+  if (!res.ok) throw new Error(data.error || `Fixel answered ${res.status}.`);
   return data;
 }
 
-const cm = window.CodeMirror
-  ? CodeMirror.fromTextArea($("source"), {
-      lineNumbers: true, indentUnit: 4, tabSize: 4, indentWithTabs: false,
-      extraKeys: { "Cmd-Enter": run, "Ctrl-Enter": run, Tab: (ed) => ed.replaceSelection("    ") },
-    })
-  : null;  // offline: the plain textarea still works
-const getCode = () => (cm ? cm.getValue() : $("source").value);
-const setCode = (text) => (cm ? cm.setValue(text) : ($("source").value = text));
-if (!cm) $("source").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
+// ---- editor: Monaco when the CDN loads, the plain textarea when it doesn't (offline)
+
+function loadMonaco() {
+  return new Promise((resolve) => {
+    if (!window.require) return resolve(null);
+    const timer = setTimeout(() => resolve(null), 10000);
+    require(["vs/editor/editor.main"], () => { clearTimeout(timer); resolve(window.monaco); }, () => resolve(null));
+  });
+}
+
+function defineThemes(monaco) {
+  const rules = (dark) => [
+    { token: "keyword", foreground: dark ? "B6A9FF" : "6A5CF0" },
+    { token: "string", foreground: dark ? "7FDCA4" : "1F8A5B" },
+    { token: "number", foreground: dark ? "7FBFFF" : "2F7FD8" },
+    { token: "comment", foreground: dark ? "777392" : "8C89A3", fontStyle: "italic" },
+    { token: "tag", foreground: dark ? "B6A9FF" : "6A5CF0" },
+    { token: "attribute.name", foreground: dark ? "7FBFFF" : "2F7FD8" },
+    { token: "attribute.value", foreground: dark ? "7FDCA4" : "1F8A5B" },
+    { token: "metatag", foreground: dark ? "777392" : "8C89A3" },
+    { token: "metatag.content", foreground: dark ? "777392" : "8C89A3" },
+    { token: "delimiter", foreground: dark ? "9D99B5" : "6B6884" },
+  ];
+  monaco.editor.defineTheme("fixel-light", { base: "vs", inherit: true, rules: rules(false), colors: {
+    "editor.background": "#FAFAFD", "editor.lineHighlightBackground": "#F1F0FA", "editorLineNumber.foreground": "#B3B0C6",
+    "editorLineNumber.activeForeground": "#6B6884", "editorCursor.foreground": "#8B7CFF", "editor.selectionBackground": "#5AA9FF40",
+    "editorIndentGuide.background1": "#ECEBF3", "focusBorder": "#00000000" } });
+  monaco.editor.defineTheme("fixel-dark", { base: "vs-dark", inherit: true, rules: rules(true), colors: {
+    "editor.background": "#1C1A29", "editor.lineHighlightBackground": "#232036", "editorLineNumber.foreground": "#4E4A66",
+    "editorLineNumber.activeForeground": "#9D99B5", "editorCursor.foreground": "#A99BFF", "editor.selectionBackground": "#5AA9FF40",
+    "editorIndentGuide.background1": "#2E2B40", "focusBorder": "#00000000" } });
+}
+
+const darkQuery = matchMedia("(prefers-color-scheme: dark)");
+const theme = () => (darkQuery.matches ? "fixel-dark" : "fixel-light");
+
+async function startEditor() {
+  const monaco = await loadMonaco();
+  if (!monaco) {
+    $("source").addEventListener("input", onEdit);
+    $("source").addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run();
+      if (e.key === "Tab") { e.preventDefault(); document.execCommand("insertText", false, "    "); }
+    });
+    return;
+  }
+  await document.fonts.load('13px "Fragment Mono"').catch(() => {});
+  defineThemes(monaco);
+  editor = monaco.editor.create($("editor"), {
+    value: $("source").value, language: MODES[lang], theme: theme(),
+    fontFamily: '"Fragment Mono", ui-monospace, Menlo, monospace', fontSize: 13, lineHeight: 21,
+    minimap: { enabled: false }, wordWrap: "on", bracketPairColorization: { enabled: false }, automaticLayout: true, scrollBeyondLastLine: false, tabSize: 4,
+    padding: { top: 12 }, renderLineHighlight: "line", overviewRulerLanes: 0, fixedOverflowWidgets: true,
+  });
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, run);
+  editor.onDidChangeModelContent(onEdit);
+  darkQuery.addEventListener("change", () => monaco.editor.setTheme(theme()));
+  document.body.classList.add("ready");
+}
+
+const getCode = () => (editor ? editor.getValue() : $("source").value);
+function setCode(text) {
+  loading = true;
+  if (editor) {
+    editor.setValue(text);
+    window.monaco.editor.setModelLanguage(editor.getModel(), MODES[lang]);
+  } else {
+    $("source").value = text;
+  }
+  loading = false;
+}
+
+// ---- the selection pane
+
+function focusShot() {  // the corners snap in, like Pix focusing in the terminal
+  const shot = $("shot");
+  shot.classList.add("focus");
+  requestAnimationFrame(() => requestAnimationFrame(() => shot.classList.remove("focus")));
+}
+new ResizeObserver(([entry]) => {
+  const { width, height } = entry.contentRect;
+  $("size").textContent = `${Math.round(width)} × ${Math.round(height)}`;
+}).observe($("preview"));
+
+function updatePreview() { $("preview").srcdoc = getCode(); }
 
 function toast(message) {
   $("toast").textContent = message;
   $("toast").classList.add("show");
-  setTimeout(() => $("toast").classList.remove("show"), 3000);
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => $("toast").classList.remove("show"), 3200);
 }
 
 function showLang(name, code) {
   lang = name;
   lastRun = null;
-  $("lang").value = name;
-  $("file").textContent = langs[name].filename;
+  const spec = langs[name];
+  $(`lang-${name}`).checked = true;
+  $("file").textContent = spec.filename;
+  $("download").innerHTML = `Download<span class="name"> ${spec.filename}</span>`;
+  document.body.classList.toggle("runnable", spec.runnable);
+  $("run").disabled = !spec.runnable;
+  $("right-label").textContent = spec.runnable ? "Output" : "Preview";
+  $("output").textContent = "";
+  $("status").textContent = "";
+  $("status").className = "";
   setCode(code);
-  if (cm) cm.setOption("mode", MODES[name]);
-  const runnable = langs[name].runnable;
-  $("run").disabled = !runnable;
-  $("preview").style.display = runnable ? "none" : "block";
-  $("runner").style.display = runnable ? "flex" : "none";
-  $("right-label").textContent = runnable ? "Output" : "Preview";
-  $("output").textContent = "Run your code to see its output.";
-  $("output").classList.remove("bad");
-  if (!runnable) updatePreview();
+  if (!spec.runnable) updatePreview();
+  focusShot();
 }
 
-function updatePreview() { $("preview").srcdoc = getCode(); }
-
 function onEdit() {
+  if (loading) return;  // opening code (a hand-off, a language switch) must not overwrite the saved scratch
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => api("/api/save", { lang, code: getCode() }).catch(() => {}), 1000);
   if (!langs[lang].runnable) {
@@ -143,23 +327,41 @@ function onEdit() {
     previewTimer = setTimeout(updatePreview, 300);
   }
 }
-if (cm) cm.on("change", onEdit); else $("source").addEventListener("input", onEdit);
+
+// ---- actions
 
 async function run() {
   if (!langs[lang] || !langs[lang].runnable || $("run").disabled) return;
   const code = getCode();
   $("run").disabled = true;
-  $("output").classList.remove("bad");
-  $("output").textContent = "Running…";
+  $("output").textContent = "";
+  $("status").className = "";
+  $("status").textContent = "Running…";
   try {
     const r = await api("/api/run", { lang, code, stdin: $("stdin").value });
-    const status = r.exit_code === null ? "stopped" : `exit ${r.exit_code}`;
-    $("output").textContent = `${r.output.trimEnd() || "(no output)"}\n── ${status} · ${r.seconds.toFixed(1)}s`;
-    $("output").classList.toggle("bad", r.exit_code !== 0);
-    lastRun = r.error ? null : { code, output: r.output, exit_code: r.exit_code };
+    if (r.error) {  // can't run at all, e.g. Java isn't installed
+      $("status").textContent = r.output;
+      $("status").className = "bad";
+      lastRun = null;
+      return;
+    }
+    $("output").textContent = r.output.replace(/\n?\[stopped after [\d.]+s\]$/, "").trimEnd();
+    const s = r.seconds.toFixed(1);
+    if (r.exit_code === null) {
+      $("status").textContent = `Stopped after ${s}s. Programs get a few seconds to finish; check for a loop that never ends.`;
+      $("status").className = "bad";
+    } else if (r.exit_code === 0) {
+      $("status").textContent = `Finished in ${s}s`;
+      $("status").className = "ok";
+    } else {
+      $("status").textContent = `Exited with code ${r.exit_code} after ${s}s`;
+      $("status").className = "bad";
+    }
+    lastRun = { code, output: r.output, exit_code: r.exit_code };
+    focusShot();
   } catch (e) {
-    $("output").textContent = e.message;
-    $("output").classList.add("bad");
+    $("status").textContent = e.message;
+    $("status").className = "bad";
   } finally {
     $("run").disabled = false;
   }
@@ -172,7 +374,7 @@ async function ask() {
     await api("/api/ask", {
       lang, code, output: fresh ? lastRun.output : "", exit_code: fresh ? lastRun.exit_code : null, ran: !!fresh,
     });
-    toast("Sent to Fixel. Switch to the terminal and press Enter.");
+    toast("Sent to Fixel. Press Enter in the terminal to ask.");
   } catch (e) { toast(e.message); }
 }
 
@@ -189,23 +391,31 @@ $("download").addEventListener("click", download);
 $("lang").addEventListener("change", async (e) => {
   const next = e.target.value;
   await api("/api/save", { lang, code: getCode() }).catch(() => {});
-  const data = await api(`/api/scratch?lang=${encodeURIComponent(next)}`);
-  showLang(next, data.code);
+  try {
+    const data = await api(`/api/scratch?lang=${encodeURIComponent(next)}`);
+    showLang(next, data.code);
+  } catch (err) { toast(err.message); }
 });
 
 (async () => {
+  let state;
   try {
-    const state = await api("/api/state");
-    for (const l of state.langs) {
-      langs[l.name] = l;
-      $("lang").append(new Option(l.label, l.name));
-    }
-    showLang(state.lang, state.code);
+    state = await api("/api/state");
   } catch (e) {
-    $("output").textContent = `${e.message} Open the playground from Fixel with /web.`;
-    $("runner").style.display = "flex";
-    $("preview").style.display = "none";
+    document.body.classList.add("runnable");
+    $("status").textContent = "This page only works when Fixel opens it. Type /web in Fixel.";
+    $("status").className = "bad";
+    return;
   }
+  for (const l of state.langs) {
+    langs[l.name] = l;
+    $("lang").insertAdjacentHTML("beforeend",
+      `<label><input type="radio" name="lang" id="lang-${l.name}" value="${l.name}"><span>${l.label}</span></label>`);
+  }
+  lang = state.lang;
+  $("source").value = state.code;
+  await startEditor();
+  showLang(state.lang, state.code);
 })();
 </script>
 </body>
