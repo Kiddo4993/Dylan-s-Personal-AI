@@ -112,3 +112,45 @@ async def test_code_handed_in_that_differs_from_the_saved_file_counts_as_modifie
     editor, task = start(tmp_path, pipe, code="from ctrl+p")
     assert "modified" in editor.status_text()
     await finish(pipe, task)
+
+
+# ---- completion
+
+CTRL_SPACE, TAB = "\x00", "\t"
+
+
+def offered(editor):
+    state = editor.code.buffer.complete_state
+    return [c.text for c in state.completions] if state else []
+
+
+def at_end(editor):
+    editor.code.buffer.cursor_position = len(editor.code.text)
+
+
+async def test_ctrl_space_offers_words_from_the_code_and_tab_picks_one(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="counter = 1\ncou")
+    at_end(editor)
+    pipe.send_text(CTRL_SPACE)
+    await until(lambda: "counter" in offered(editor))
+    pipe.send_text(TAB)
+    await until(lambda: editor.code.text.endswith("\ncounter"))
+    pipe.send_text(ENTER)  # accepts: closes the menu without a new line
+    await until(lambda: editor.code.buffer.complete_state is None)
+    assert editor.code.text == "counter = 1\ncounter"
+    await finish(pipe, task)
+
+
+async def test_completion_offers_the_languages_keywords(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, lang="java", code="Sys")
+    at_end(editor)
+    pipe.send_text(CTRL_SPACE)
+    await until(lambda: "System" in offered(editor))
+    await finish(pipe, task)
+
+
+async def test_tab_without_a_menu_still_indents(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="")
+    pipe.send_text(TAB)
+    await until(lambda: editor.code.text == "    ")
+    await finish(pipe, task)

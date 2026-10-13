@@ -9,9 +9,10 @@ from typing import Awaitable, Callable
 from prompt_toolkit.application import Application
 from prompt_toolkit.filters import Condition, has_focus
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import ConditionalContainer, HSplit, Layout, VSplit, Window
+from prompt_toolkit.layout import ConditionalContainer, Float, FloatContainer, HSplit, Layout, VSplit, Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
+from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import PygmentsLexer
 from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.styles import merge_styles, style_from_pygments_cls
@@ -19,6 +20,7 @@ from prompt_toolkit.widgets import TextArea
 from pygments.styles import get_style_by_name
 
 from .attachment import CodeAttachment
+from .keywords import CodeCompleter
 from .langs import LANGS, RUNNABLE
 from .runner import RunnerError, RunResult
 from .scratch import Scratch
@@ -49,7 +51,10 @@ class Editor:
         self._saved = scratch.load(lang)  # what's in the scratch file, for the modified marker
         self._ran_code: str | None = None  # the code `last` came from
         self._task: asyncio.Task | None = None
-        self.code = TextArea(text=code, lexer=self._lexer(), line_numbers=True, scrollbar=True)
+        self.code = TextArea(
+            text=code, lexer=self._lexer(), line_numbers=True, scrollbar=True,
+            completer=CodeCompleter(lambda: self.lang), complete_while_typing=False,
+        )
         self.stdin = TextArea(height=Dimension(preferred=3, max=6), prompt="stdin› ")
         self.output = TextArea(
             text="F5 runs your code.", read_only=True, scrollbar=True, height=Dimension(preferred=8, max=12)
@@ -65,10 +70,13 @@ class Editor:
             ConditionalContainer(HSplit([self.stdin, rule()]), filter=Condition(lambda: self.show_input)),
             self.output,
         ])
-        body = HSplit([
-            VSplit([Window(self.sidebar, width=14), Window(width=1, char="│", style="class:rule"), main]),
-            Window(FormattedTextControl(self.status_text), height=1, style="reverse"),
-        ])
+        body = FloatContainer(
+            HSplit([
+                VSplit([Window(self.sidebar, width=14), Window(width=1, char="│", style="class:rule"), main]),
+                Window(FormattedTextControl(self.status_text), height=1, style="reverse"),
+            ]),
+            floats=[Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=8, scroll_offset=1))],
+        )
         self.app = Application(
             layout=Layout(body, focused_element=self.code),
             key_bindings=self._bindings(),
@@ -213,9 +221,27 @@ class Editor:
         def _(event) -> None:
             self._close(attach=False)
 
-        @kb.add("tab", filter=has_focus(self.code))
+        in_code = has_focus(self.code)
+
+        @kb.add("c-space", filter=in_code)
         def _(event) -> None:
-            event.current_buffer.insert_text("    ")
+            event.current_buffer.start_completion(select_first=False)
+
+        @kb.add("tab", filter=in_code)
+        def _(event) -> None:
+            buffer = event.current_buffer
+            if buffer.complete_state:
+                buffer.complete_next()
+            else:
+                buffer.insert_text("    ")
+
+        @kb.add("enter", filter=in_code)
+        def _(event) -> None:
+            buffer = event.current_buffer
+            state = buffer.complete_state
+            buffer.complete_state = None
+            if state is None or state.current_completion is None:  # nothing picked: a normal new line
+                buffer.newline(copy_margin=False)
 
         return kb
 
