@@ -7,17 +7,21 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable
 
 from prompt_toolkit.application import Application
+from prompt_toolkit.document import Document
 from prompt_toolkit.filters import Condition, has_focus
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import ConditionalContainer, HSplit, Layout, Window
+from prompt_toolkit.layout import ConditionalContainer, Float, FloatContainer, HSplit, Layout, VSplit, Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
+from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.styles import merge_styles, style_from_pygments_cls
 from prompt_toolkit.widgets import TextArea
 from pygments.styles import get_style_by_name
 
 from .attachment import CodeAttachment
+from .keywords import CodeCompleter
 from .langs import LANGS, RUNNABLE
 from .runner import RunnerError, RunResult
 from .scratch import Scratch
@@ -30,6 +34,24 @@ class EditorResult:
     lang: str
     code: str
     attachment: CodeAttachment | None  # set when the user pressed ⌃A
+
+
+INDENT = "    "
+
+
+def next_line_indent(line: str, before_cursor: str) -> str:
+    """Indentation for a new line: the current line's, plus one level after a ':' or '{'."""
+    indent = line[: len(line) - len(line.lstrip(" \t"))]
+    return indent + INDENT if before_cursor.rstrip().endswith((":", "{")) else indent
+
+
+def dedented(document: Document) -> Document:
+    """The document with up to one indent level removed from the start of the cursor's line."""
+    line = document.current_line
+    remove = min(len(INDENT), len(line) - len(line.lstrip(" ")))
+    start = document.cursor_position - document.cursor_position_col
+    text = document.text[:start] + document.text[start + remove :]
+    return Document(text, max(start, document.cursor_position - remove))
 
 
 def format_result(result: RunResult) -> str:
@@ -45,21 +67,39 @@ class Editor:
         self.show_input = False
         self._run = run
         self._opened_with = code
+        self._saved = scratch.load(lang)  # what's in the scratch file, for the modified marker
         self._ran_code: str | None = None  # the code `last` came from
         self._task: asyncio.Task | None = None
-        self.code = TextArea(text=code, lexer=self._lexer(), line_numbers=True, scrollbar=True)
+        self.code = TextArea(
+            text=code, lexer=self._lexer(), line_numbers=True, scrollbar=True,
+            completer=CodeCompleter(lambda: self.lang), complete_while_typing=False,
+        )
         self.stdin = TextArea(height=Dimension(preferred=3, max=6), prompt="stdin› ")
         self.output = TextArea(
             text="F5 runs your code.", read_only=True, scrollbar=True, height=Dimension(preferred=8, max=12)
         )
+        self._picked = RUNNABLE.index(lang)  # the sidebar's highlighted row while it has focus
+        self.bar_mode: str | None = None  # "find" or "line" while the one-line bar under the code is open
+        self._no_match = False
+        self.bar = TextArea(multiline=False, height=1, prompt=self.bar_prompt, accept_handler=self._bar_enter)
+        self.sidebar = FormattedTextControl(
+            self.sidebar_fragments, focusable=True, show_cursor=False, key_bindings=self._sidebar_bindings()
+        )
         rule = lambda: Window(height=1, char="─", style="class:rule")  # noqa: E731
-        body = HSplit([
+        main = HSplit([
             self.code,
+            ConditionalContainer(HSplit([rule(), self.bar]), filter=Condition(lambda: self.bar_mode is not None)),
             rule(),
             ConditionalContainer(HSplit([self.stdin, rule()]), filter=Condition(lambda: self.show_input)),
             self.output,
-            Window(FormattedTextControl(self._status_text), height=1, style="reverse"),
         ])
+        body = FloatContainer(
+            HSplit([
+                VSplit([Window(self.sidebar, width=14), Window(width=1, char="│", style="class:rule"), main]),
+                Window(FormattedTextControl(self.status_text), height=1, style="reverse"),
+            ]),
+            floats=[Float(xcursor=True, ycursor=True, content=CompletionsMenu(max_height=8, scroll_offset=1))],
+        )
         self.app = Application(
             layout=Layout(body, focused_element=self.code),
             key_bindings=self._bindings(),
@@ -80,9 +120,56 @@ class Editor:
     def _lexer(self) -> PygmentsLexer:
         return PygmentsLexer.from_filename(LANGS[self.lang].filename)
 
-    def _status_text(self) -> str:
+    def status_text(self) -> str:
+        doc = self.code.document
+        where = f"Ln {doc.cursor_position_row + 1}, Col {doc.cursor_position_col + 1}"
+        modified = " · modified" if self.code.text != self._saved else ""
         running = " · running… ⌃C stops" if self._running else ""
-        return f" {LANGS[self.lang].label} · F5 run · F3 input · F2 language · ⌃A ask Fixel · Esc back{running} "
+        keys = "F5 run · F3 input · F4 files · ⌃F find · ⌃G line · ⌃A ask Fixel · Esc back"
+        return f" {LANGS[self.lang].label} · {where}{modified}{running}   {keys} "
+
+    def bar_prompt(self) -> str:
+        if self.bar_mode == "line":
+            return " Go to line: "
+        return " Find (no match): " if self._no_match else " Find: "
+
+    def _open_bar(self, mode: str) -> None:
+        self.bar_mode, self._no_match = mode, False
+        self.bar.text = ""
+        self.app.layout.focus(self.bar)
+
+    def _close_bar(self) -> None:
+        self.bar_mode = None
+        self.app.layout.focus(self.code)
+
+    def _bar_enter(self, buffer) -> bool:
+        """Enter in the bar. Find stays open so Enter again finds the next match; go-to-line closes."""
+        if self.bar_mode == "find":
+            self._no_match = not self._find_next(buffer.text)
+            return True
+        if buffer.text.strip().isdigit():
+            lines = self.code.text.split("\n")
+            row = min(max(int(buffer.text), 1), len(lines)) - 1
+            self.code.buffer.cursor_position = sum(len(line) + 1 for line in lines[:row])
+        self._close_bar()
+        return False
+
+    def _find_next(self, query: str) -> bool:
+        """Move the cursor to the next match after it (any case), wrapping to the top. False if none."""
+        if not query:
+            return False
+        text, needle = self.code.text.lower(), query.lower()
+        at = text.find(needle, self.code.buffer.cursor_position + 1)
+        if at < 0:
+            at = text.find(needle)
+        if at < 0:
+            return False
+        self.code.buffer.cursor_position = at
+        return True
+
+    def _save(self) -> None:
+        self.scratch.save(self.lang, self.code.text)
+        self._saved = self.code.text
 
     @property
     def _running(self) -> bool:
@@ -98,12 +185,12 @@ class Editor:
         if self._running:
             self._task.cancel()
         if self.code.text != self._opened_with or self.last is not None:
-            self.scratch.save(self.lang, self.code.text)
+            self._save()
         self.app.exit(result=EditorResult(self.lang, self.code.text, self._attachment() if attach else None))
 
     async def _run_now(self) -> None:
         code = self.code.text
-        self.scratch.save(self.lang, code)
+        self._save()
         self.output.text = "Running…"
         self.app.invalidate()
         try:
@@ -119,10 +206,41 @@ class Editor:
         finally:
             self.app.invalidate()
 
+    def sidebar_fragments(self):
+        """One row per scratch file; the open one is marked, and each row opens its file on click."""
+        focused = self.app.layout.has_focus(self.sidebar) if hasattr(self, "app") else False
+        fragments = [("class:sidebar.title", " Files\n")]
+        for i, lang in enumerate(RUNNABLE):
+            style = "class:sidebar.current" if lang == self.lang else "class:sidebar"
+            if focused and i == self._picked:
+                style += " reverse"
+            marker = "▸ " if lang == self.lang else "  "
+            fragments.append((style, f" {marker}{LANGS[lang].filename}\n", self._on_click(lang)))
+        return fragments
+
+    def _on_click(self, lang: str):
+        def handler(mouse_event) -> None:
+            if mouse_event.event_type == MouseEventType.MOUSE_UP:
+                self._open_file(lang)
+            else:
+                return NotImplemented
+
+        return handler
+
+    def _open_file(self, lang: str) -> None:
+        if not self._running and lang != self.lang:
+            self._switch_to(lang)
+        self.app.layout.focus(self.code)
+
     def _switch_language(self) -> None:
-        self.scratch.save(self.lang, self.code.text)
-        self.lang = RUNNABLE[(RUNNABLE.index(self.lang) + 1) % len(RUNNABLE)]
+        self._switch_to(RUNNABLE[(RUNNABLE.index(self.lang) + 1) % len(RUNNABLE)])
+
+    def _switch_to(self, lang: str) -> None:
+        self._save()
+        self.lang = lang
+        self._picked = RUNNABLE.index(lang)
         text = self.scratch.load(self.lang)
+        self._saved = text
         self.code.text, self._opened_with = text, text
         self.code.lexer = self._lexer()  # TextArea reads it through a DynamicLexer
         self.last, self._ran_code = None, None
@@ -155,12 +273,76 @@ class Editor:
         def _(event) -> None:
             self._close(attach=True)
 
-        @kb.add("escape")  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
+        @kb.add("f4")
+        def _(event) -> None:
+            on_sidebar = event.app.layout.has_focus(self.sidebar)
+            self._picked = RUNNABLE.index(self.lang)
+            event.app.layout.focus(self.code if on_sidebar else self.sidebar)
+
+        in_bar = has_focus(self.bar)
+
+        @kb.add("c-f")
+        def _(event) -> None:
+            self._open_bar("find")
+
+        @kb.add("c-g")
+        def _(event) -> None:
+            self._open_bar("line")
+
+        @kb.add("escape", filter=in_bar)
+        def _(event) -> None:
+            self._close_bar()
+
+        @kb.add("escape", filter=~in_bar)  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
         def _(event) -> None:
             self._close(attach=False)
 
-        @kb.add("tab", filter=has_focus(self.code))
+        in_code = has_focus(self.code)
+
+        @kb.add("c-space", filter=in_code)
         def _(event) -> None:
-            event.current_buffer.insert_text("    ")
+            event.current_buffer.start_completion(select_first=False)
+
+        @kb.add("tab", filter=in_code)
+        def _(event) -> None:
+            buffer = event.current_buffer
+            if buffer.complete_state:
+                buffer.complete_next()
+            else:
+                buffer.insert_text(INDENT)
+
+        @kb.add("s-tab", filter=in_code)
+        def _(event) -> None:
+            buffer = event.current_buffer
+            if buffer.complete_state:
+                buffer.complete_previous()
+            else:
+                buffer.document = dedented(buffer.document)
+
+        @kb.add("enter", filter=in_code)
+        def _(event) -> None:
+            buffer = event.current_buffer
+            state = buffer.complete_state
+            buffer.complete_state = None
+            if state is None or state.current_completion is None:  # nothing picked: a new, indented line
+                doc = buffer.document
+                buffer.insert_text("\n" + next_line_indent(doc.current_line, doc.current_line_before_cursor))
+
+        return kb
+
+    def _sidebar_bindings(self) -> KeyBindings:
+        kb = KeyBindings()
+
+        @kb.add("up")
+        def _(event) -> None:
+            self._picked = (self._picked - 1) % len(RUNNABLE)
+
+        @kb.add("down")
+        def _(event) -> None:
+            self._picked = (self._picked + 1) % len(RUNNABLE)
+
+        @kb.add("enter")
+        def _(event) -> None:
+            self._open_file(RUNNABLE[self._picked])
 
         return kb
