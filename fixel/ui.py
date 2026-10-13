@@ -28,6 +28,7 @@ BADGES = {
     "error": "bold white on red",
     "math": "bold black on cyan",
     "doc": "bold black on yellow",
+    "writing": "bold white on magenta",
     "ui": "bold white on blue",
     "general": "bold black on white",
 }

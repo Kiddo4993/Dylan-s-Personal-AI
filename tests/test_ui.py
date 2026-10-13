@@ -134,3 +134,12 @@ def test_pix_never_touches_the_words_and_only_pix_is_colored():
         assert line.plain[7] == " ", line.plain  # a gap after Pix's 7-cell face, always
         assert not line.style  # no colour on the whole line...
         assert line.spans[0].end == 7  # ...just on Pix's face
+
+
+def test_every_mode_has_a_badge_and_a_color():
+    from fixel.home import MODE_COLORS
+    from fixel.parse import MODES
+    from fixel.ui import BADGES
+
+    assert set(BADGES) == set(MODES)
+    assert set(MODE_COLORS) == set(MODES)

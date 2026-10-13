@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-MODES = ("error", "math", "doc", "ui", "general")
+MODES = ("error", "math", "doc", "writing", "ui", "general")
 HEADER_MAX = 400  # give up waiting for `---` after this many characters
 
 _SEPARATOR = re.compile(r"^---[ \t]*$\n?", re.M)

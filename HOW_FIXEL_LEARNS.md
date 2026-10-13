@@ -85,11 +85,12 @@ This is the closest thing Fixel has to training, and it's done in plain English.
   KEY: ModuleNotFoundError: No module named 'numpy'
   ---
   ```
-- **How to classify the screenshot:** error, math, doc, ui, or general.
+- **How to classify the screenshot:** error, math, doc, writing, ui, or general.
 - **How to answer each kind:**
   - error → **Cause**, then **Fix** as one paste-ready code block
   - math → numbered steps, then `Answer: …`
   - doc → a short summary, then a **Draft** you can copy
+  - writing → the essay-feedback format defined in `WRITING_FORMAT`
   - ui → exact click-by-click steps
 - **Style rules:** lead with the answer, quote exact names from the screen, no filler.
 
@@ -101,7 +102,7 @@ This technique is called **prompt engineering**. It changes the model's *behavio
 
 Fixel reads the hidden header out of each reply as it streams in. That lets it:
 
-- Show a colored badge (**ERROR**, **MATH**, **DOC**, **UI**) instead of raw text.
+- Show a colored badge (**ERROR**, **MATH**, **DOC**, **WRITING**, **UI**) instead of raw text.
 - Find "the fix" so **`/copy`** copies just that part.
 - Find the shell command so **`/run`** can run it (only after you type `y`).
 

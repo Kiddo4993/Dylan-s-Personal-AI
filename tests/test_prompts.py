@@ -28,3 +28,17 @@ def test_instructions_forbid_inventing_problems():
     system = build_system(learn=False)
     assert "Never invent an error" in system
     assert "ask what they need" in system
+
+
+def test_instructions_route_school_writing_to_writing_mode():
+    system = build_system(learn=False)
+    assert "MODE: <error|math|doc|writing|ui|general>" in system
+    assert "- writing:" in system  # how to recognize it
+    assert "\nwriting:\n" in system  # how to answer it
+
+
+def test_writing_format_is_filled_in():
+    from fixel.prompts import WRITING_FORMAT
+
+    assert WRITING_FORMAT.strip(), "Describe writing mode's answer format in WRITING_FORMAT (fixel/prompts.py)"
+    assert WRITING_FORMAT in build_system(learn=False)

@@ -61,3 +61,9 @@ def test_runnable_command_only_shell_blocks():
     body = "```python\nimport os\n```\n```zsh\n$ brew install jq\n$ jq --version\n```"
     assert runnable_command(body) == "brew install jq\njq --version"
     assert runnable_command("```diff\n-a\n+b\n```") is None
+
+
+def test_writing_mode_is_recognized():
+    header, body = split_header("MODE: writing\nKEY: The Great Gatsby thesis\n---\n**Thesis:** arguable.")
+    assert header == Header("writing", "The Great Gatsby thesis")
+    assert body == "**Thesis:** arguable."
