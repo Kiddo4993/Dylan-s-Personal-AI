@@ -69,7 +69,8 @@ class Editor:
             input=input,
             output=output,
         )
-        self.app.ttimeoutlen = 0.05  # Esc closes without a half-second wait
+        self.app.ttimeoutlen = 0.05  # how long a lone Esc byte waits to become part of an escape sequence
+        self.app.timeoutlen = 0.25  # how long Esc waits for a following key (Esc+f is ⌥→) before closing
 
     async def edit(self) -> EditorResult:
         return await self.app.run_async()
@@ -154,7 +155,7 @@ class Editor:
         def _(event) -> None:
             self._close(attach=True)
 
-        @kb.add("escape", eager=True)
+        @kb.add("escape")  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
         def _(event) -> None:
             self._close(attach=False)
 

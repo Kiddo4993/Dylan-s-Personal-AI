@@ -15,6 +15,7 @@ from urllib.parse import parse_qs, urlsplit
 from .attachment import CodeAttachment
 from .editor import RunFn
 from .langs import LANGS, RUNNABLE
+from .monaco import CONTENT_TYPES, VERSION, MonacoError, MonacoFiles
 from .runner import RunnerError
 from .scratch import Scratch
 
@@ -31,9 +32,11 @@ class PlaygroundServer:
         on_ask: Callable[[CodeAttachment], None],
         *,
         token: str | None = None,
+        monaco: MonacoFiles | None = None,
     ) -> None:
         self.loop = loop
         self.scratch = scratch
+        self.monaco = monaco or MonacoFiles(scratch.folder.parent / f"monaco-{VERSION}")
         self.token = token or secrets.token_urlsafe(32)
         self._run = run
         self._on_ask = on_ask
@@ -62,8 +65,7 @@ class PlaygroundServer:
         if self._httpd is not None:
             return
         handler = type("Handler", (_Handler,), {"playground": self})
-        httpd = ThreadingHTTPServer(("127.0.0.1", port), handler)
-        httpd.daemon_threads = True
+        httpd = _QuietServer(("127.0.0.1", port), handler)
         threading.Thread(target=httpd.serve_forever, kwargs={"poll_interval": 0.1}, name="fixel-web", daemon=True).start()
         self._httpd = httpd
 
@@ -129,9 +131,17 @@ class PlaygroundServer:
         return 200, {"ok": True}
 
 
+class _QuietServer(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address) -> None:
+        pass  # a closed tab or a broken request must never print a traceback over Fixel's prompt or editor
+
+
 class _Handler(BaseHTTPRequestHandler):
     playground: PlaygroundServer
     server_version = "Fixel"
+    timeout = 10  # seconds to wait on a slow or short request body before giving up on it
 
     def log_message(self, format, *args) -> None:  # keep Fixel's terminal clean
         pass
@@ -140,6 +150,9 @@ class _Handler(BaseHTTPRequestHandler):
         url = urlsplit(self.path)
         if url.path == "/":
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+            return
+        if url.path.startswith("/monaco/"):  # public editor code: no token, but every byte is hash-checked
+            self._send_monaco(url.path.removeprefix("/monaco/"))
             return
         routes = {"/api/state": self.playground.api_state, "/api/scratch": self.playground.api_scratch}
         route = routes.get(url.path)
@@ -187,7 +200,7 @@ class _Handler(BaseHTTPRequestHandler):
             return None
         try:
             body = json.loads(self.rfile.read(length) or b"{}")
-        except ValueError:
+        except (ValueError, RecursionError):  # RecursionError: absurdly deep nesting
             body = None
         if not isinstance(body, dict):
             self._json(400, {"error": "Expected a JSON object."})
@@ -200,13 +213,28 @@ class _Handler(BaseHTTPRequestHandler):
             body[field] = value
         return body
 
+    def _send_monaco(self, path: str) -> None:
+        try:
+            data = self.playground.monaco.get(path)
+        except MonacoError as e:
+            self._json(502, {"error": str(e)})
+            return
+        if data is None:
+            self._json(404, {"error": "Not found."})
+            return
+        suffix = path[path.rfind("."):]
+        self._send(200, data, CONTENT_TYPES.get(suffix, "application/octet-stream"), cache="max-age=31536000, immutable")
+
     def _json(self, status: int, payload: dict) -> None:
         self._send(status, json.dumps(payload).encode(), "application/json")
 
-    def _send(self, status: int, data: bytes, content_type: str) -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(data)
+    def _send(self, status: int, data: bytes, content_type: str, cache: str = "no-store") -> None:
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", cache)
+            self.end_headers()
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):  # the browser tab closed mid-request
+            self.close_connection = True

@@ -1,3 +1,4 @@
+import asyncio
 import os
 import shutil
 import time
@@ -100,3 +101,28 @@ async def test_cpp_build_failure_skips_run():
 async def test_node_runs():
     result = await run("console.log(1 + 1)", "js")
     assert result.output == "2\n"
+
+
+@pytest.mark.parametrize("lang", ["python", "java", "javascript", "cpp"])
+async def test_every_starter_runs_cleanly_with_no_input(lang):
+    from fixel.playground.langs import LANGS
+
+    if shutil.which(LANGS[lang].tool) is None:
+        pytest.skip(f"{LANGS[lang].tool} not installed")
+    result = await run(LANGS[lang].starter, lang, timeout=30)
+    assert result.exit_code == 0, result.output
+
+
+async def test_large_stdin_never_hangs_past_the_timeout():
+    # The program prints a lot without reading its input, so stdin and stdout both fill up.
+    code = "import time\nprint('x' * 300_000, flush=True)\ntime.sleep(30)\n"
+    started = time.monotonic()
+    result = await asyncio.wait_for(run(code, "python", stdin="7\n" * 300_000, timeout=2), 15)
+    assert result.exit_code is None and time.monotonic() - started < 8
+    assert result.output.startswith("x" * 1000)
+
+
+async def test_large_stdin_is_read_by_a_program_that_wants_it():
+    code = "import sys\nlines = sys.stdin.read().split()\nprint(len(lines), sum(map(int, lines)))\n"
+    result = await run(code, "python", stdin="2\n" * 150_000, timeout=10)
+    assert result.exit_code == 0 and result.output == "150000 300000\n"

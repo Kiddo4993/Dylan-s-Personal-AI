@@ -21,7 +21,7 @@ LANGS: dict[str, Lang] = {
     "python": Lang(
         "python", "Python", "main.py", run=("python3", "main.py"), tool="python3",
         install_hint="Python isn't installed. Install it: brew install python",
-        starter='name = input("Your name? ")\nprint(f"Hello, {name}!")\n',
+        starter='print("Hello from Fixel!")\n\n# Reading input? Type it in the Input box (F3 in /code), then:\n# name = input()\n',
     ),
     "java": Lang(
         "java", "Java", "Main.java", run=("java", "Main.java"), tool="java",

@@ -112,3 +112,68 @@ async def test_large_bodies_are_refused(web):
 async def test_stop_frees_the_server(web):
     web.stop()
     assert not web.running
+
+
+async def test_deeply_nested_json_gets_400_without_a_traceback(web, capfd):
+    status, _ = await call(web, "POST", "/api/save", raw=b"[" * 200_000)
+    assert status == 400
+    assert "Traceback" not in capfd.readouterr().err
+
+
+async def test_body_shorter_than_its_length_times_out_quietly(web, capfd, monkeypatch):
+    import socket
+
+    from fixel.playground import server as server_module
+
+    assert server_module._Handler.timeout  # the real server must not wait forever for a body
+    monkeypatch.setattr(server_module._Handler, "timeout", 0.5)  # just faster for the test
+
+    def short_body():
+        sock = socket.create_connection(("127.0.0.1", web.port), timeout=5)
+        sock.sendall(b"POST /api/save HTTP/1.1\r\nHost: x\r\nX-Fixel-Token: T0KEN\r\nContent-Length: 100\r\n\r\n{}")
+        sock.settimeout(5)
+        try:
+            return sock.recv(100)  # the server gives up and closes: b""
+        finally:
+            sock.close()
+
+    assert await asyncio.to_thread(short_body) == b""
+    assert (await call(web, "GET", "/api/state"))[0] == 200  # still serving
+    assert "Traceback" not in capfd.readouterr().err
+
+
+async def test_client_that_disconnects_mid_run_leaves_no_traceback(web, capfd):
+    import socket
+
+    def hang_up():
+        sock = socket.create_connection(("127.0.0.1", web.port), timeout=5)
+        body = b'{"lang": "python", "code": "x"}'
+        sock.sendall(b"POST /api/run HTTP/1.1\r\nHost: x\r\nX-Fixel-Token: T0KEN\r\nContent-Length: "
+                     + str(len(body)).encode() + b"\r\n\r\n" + body)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, b"\x01\x00\x00\x00\x00\x00\x00\x00")
+        sock.close()  # reset: the server's reply hits a broken connection
+
+    await asyncio.to_thread(hang_up)
+    await asyncio.sleep(0.3)
+    assert "Traceback" not in capfd.readouterr().err
+
+
+async def test_monaco_files_are_served_locally_without_a_token(tmp_path):
+    from fixel.playground.monaco import MonacoFiles, digest
+
+    def fetch(url):
+        if url.endswith("loader.js"):
+            return b"define()"
+        raise OSError("offline")
+
+    manifest = {"vs/loader.js": digest(b"define()"), "vs/editor/editor.main.css": digest(b"x")}
+    monaco = MonacoFiles(tmp_path / "monaco", fetch=fetch, files=manifest)
+    server = PlaygroundServer(asyncio.get_running_loop(), Scratch(tmp_path), None, print, token="T", monaco=monaco)
+    server.start()
+    try:
+        status, body = await call(server, "GET", "/monaco/vs/loader.js", token=None)
+        assert status == 200 and body == b"define()"
+        assert (await call(server, "GET", "/monaco/vs/nope.js", token=None))[0] == 404
+        assert (await call(server, "GET", "/monaco/vs/editor/editor.main.css", token=None))[0] == 502
+    finally:
+        server.stop()

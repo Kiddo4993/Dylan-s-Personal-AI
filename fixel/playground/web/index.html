@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Schibsted+Grotesk:wght@400;500;600&family=Silkscreen&display=swap">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.css" integrity="sha384-06yHXpYRlHEPaR4AS0fB/W+lMN09Zh5e1XMtfkNQdHV38OlhfkOEW5M+pCj3QskC" crossorigin="anonymous">
+<link rel="stylesheet" href="/monaco/vs/editor/editor.main.css">
 <style>
   :root {
     --paper: #ecebf3;   /* page */
@@ -179,22 +179,24 @@
 <div id="toast" role="status"></div>
 
 <script>
-  // Monaco's web worker must come from the CDN, which a page can't start directly; a data: URL proxies it.
-  const MONACO = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min";
+  // Fixel serves Monaco itself, every file checked against a pinned hash (fixel/playground/monaco.py).
+  // Workers are started from a data: URL so Monaco's loader inside them knows where its files live.
+  const MONACO = location.origin + "/monaco";
   window.MonacoEnvironment = {
     getWorkerUrl: () => "data:text/javascript;charset=utf-8," + encodeURIComponent(
       `self.MonacoEnvironment = { baseUrl: "${MONACO}/" }; importScripts("${MONACO}/vs/base/worker/workerMain.js");`),
   };
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.js" integrity="sha384-pHG02SG8pId94Np3AbPmBEJ1yPqaH0IkJGLSNGXYmuGhkazT8Lr/57WYpbkGjJtu" crossorigin="anonymous"></script>
+<script src="/monaco/vs/loader.js"></script>
 <script>if (window.require) require.config({ paths: { vs: MONACO + "/vs" } });</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/editor/editor.main.js" integrity="sha384-fj9z+NUc93I3woCCy5IRQfrQ8Amu1E27tllwgb5gz3d9Vr1ymS13xcF6two3e4KH" crossorigin="anonymous"></script>
+<script src="/monaco/vs/editor/editor.main.js"></script>
 <script>
 const token = location.hash.slice(1);
 const $ = (id) => document.getElementById(id);
 const MODES = { python: "python", java: "java", javascript: "javascript", cpp: "cpp", html: "html" };
 let langs = {}, lang = "python", lastRun = null, saveTimer = null, previewTimer = null, editor = null;
 let loading = false;  // true while code is put in the editor, so that doesn't count as an edit
+let dirty = false;  // edited since it was opened or last saved
 
 async function api(path, body) {
   const res = await fetch(path, {
@@ -314,14 +316,16 @@ function showLang(name, code) {
   $("status").textContent = "";
   $("status").className = "";
   setCode(code);
+  dirty = false;
   if (!spec.runnable) updatePreview();
   focusShot();
 }
 
 function onEdit() {
   if (loading) return;  // opening code (a hand-off, a language switch) must not overwrite the saved scratch
+  dirty = true;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => api("/api/save", { lang, code: getCode() }).catch(() => {}), 1000);
+  saveTimer = setTimeout(save, 1000);
   if (!langs[lang].runnable) {
     clearTimeout(previewTimer);
     previewTimer = setTimeout(updatePreview, 300);
@@ -329,6 +333,13 @@ function onEdit() {
 }
 
 // ---- actions
+
+async function save() {
+  clearTimeout(saveTimer);
+  if (!dirty) return;
+  const code = getCode();
+  await api("/api/save", { lang, code }).then(() => { if (getCode() === code) dirty = false; }).catch(() => {});
+}
 
 async function run() {
   if (!langs[lang] || !langs[lang].runnable || $("run").disabled) return;
@@ -390,7 +401,7 @@ $("ask").addEventListener("click", ask);
 $("download").addEventListener("click", download);
 $("lang").addEventListener("change", async (e) => {
   const next = e.target.value;
-  await api("/api/save", { lang, code: getCode() }).catch(() => {});
+  await save();  // only if edited: switching away from a ⌃P hand-off must not overwrite the saved file
   try {
     const data = await api(`/api/scratch?lang=${encodeURIComponent(next)}`);
     showLang(next, data.code);

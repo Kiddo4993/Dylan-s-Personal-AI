@@ -109,3 +109,13 @@ async def test_esc_closes_without_attaching_and_leaves_untouched_scratch(tmp_pat
     result = await asyncio.wait_for(task, 2)
     assert result.attachment is None
     assert Scratch(tmp_path).load("python") == "old"
+
+
+async def test_option_arrow_word_jump_does_not_close_the_editor(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, FakeRun(), code="print(x)")
+    pipe.send_text("\x1bf")  # what Terminal.app sends for ⌥→ (word forward)
+    await asyncio.sleep(0.3)
+    assert not task.done()
+    assert editor.code.buffer.cursor_position == len("print")
+    pipe.send_text(ESC)
+    assert (await asyncio.wait_for(task, 2)).attachment is None

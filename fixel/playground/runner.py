@@ -68,27 +68,39 @@ async def _exec(argv: tuple[str, ...], cwd: Path, stdin: str, timeout: float) ->
     )
     buf = bytearray()
 
-    async def pump() -> int:
+    async def feed() -> None:
+        # Its own task: a program that prints a lot before reading must not deadlock against our write.
         try:
             proc.stdin.write(stdin.encode())
             await proc.stdin.drain()
-            proc.stdin.close()  # end-of-file, so input() never waits forever
         except (BrokenPipeError, ConnectionResetError):
             pass
+        finally:
+            proc.stdin.close()  # end-of-file, so input() never waits forever
+
+    async def read() -> None:
         while chunk := await proc.stdout.read(65536):
             if len(buf) <= OUTPUT_CAP:
                 buf.extend(chunk)
-        return await proc.wait()
 
+    feeder = asyncio.ensure_future(feed())
+    reader = asyncio.ensure_future(read())
     try:
-        code = await asyncio.wait_for(pump(), timeout)
-    except asyncio.TimeoutError:
-        _kill(proc)
-        await proc.wait()
-        return None, buf.decode(errors="replace")
+        done, _ = await asyncio.wait({reader}, timeout=timeout)
+        if not done:
+            _kill(proc)
+            feeder.cancel()
+            await asyncio.wait({reader}, timeout=2)  # the killed program's output closes; don't wait forever if not
+            reader.cancel()
+            await proc.wait()
+            return None, buf.decode(errors="replace")
+        code = await proc.wait()
     except asyncio.CancelledError:  # ⌃C in the editor, or Fixel quitting
         _kill(proc)
+        feeder.cancel()
+        reader.cancel()
         raise
+    feeder.cancel()
     return code, buf.decode(errors="replace")
 
 
