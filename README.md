@@ -10,6 +10,7 @@ Fixel recognizes what you captured and answers in the format that fits:
 | a math or homework problem | numbered steps and a final `Answer:` |
 | an email, doc, or spreadsheet | a short summary plus a ready-to-use draft or formula |
 | a confusing app screen | exact click-by-click steps |
+| a webpage or design | its fonts, colours, layout and likely libraries, plus one HTML file that recreates it (⌃P opens it live) |
 
 **What sets it apart**
 
@@ -58,10 +59,18 @@ fixel --here    # runs in the current terminal instead
 | ⌃F | attach the tray to the current case instead of starting a new one |
 | ⌃G | that worked: mark this fix as proven |
 | ⌃O | open the past case Fixel used |
+| ⌃P | open the answer's code in the playground |
 | ⌃N | new case |
 | ⌃C | stop an answer that's streaming |
 
-Commands: `/model sonnet|opus|gemini|gpt`, `/api [provider] [key]`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/exit` (or `/quit`).
+Commands: `/code [python|java|js|cpp]`, `/web`, `/model sonnet|opus|gemini|gpt`, `/api [provider] [key]`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/exit` (or `/quit`).
+
+## Playground
+
+- `/code [python|java|js|cpp]` opens a full-screen editor: **F5** run · **F3** input (stdin) · **F2** language · **⌃A** ask Fixel about the code and its output · **Esc** back.
+- `/web` opens the browser playground: live HTML preview, a Run button for the same four languages, and **Ask Fixel**.
+- **⌃P** opens an answer's code: HTML in the browser, everything else in `/code`. Nothing runs until you press Run.
+- Code runs on your Mac with your permissions (it's a scratchpad, not a sandbox). Runs stop after `playground_timeout` seconds (default 10). Your scratch code lives in `~/.fixel/playground/`.
 
 ## Customize
 

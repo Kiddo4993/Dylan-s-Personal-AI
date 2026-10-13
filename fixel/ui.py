@@ -36,6 +36,7 @@ ACTION_KEYS = (
     ("c-y", "copy"),
     ("c-r", "run"),
     ("c-s", "save"),
+    ("c-p", "play"),
     ("c-l", "learn"),
     ("c-f", "follow"),
     ("c-o", "open"),
@@ -54,12 +55,13 @@ double-tap again to add more (up to 5).
 | ⌃Y | copy the fix / answer / draft |
 | ⌃R | run the suggested shell command (asks first) |
 | ⌃S | save this case as a note in ~/Fixel Notes |
+| ⌃P | open the answer's code in the playground (HTML in the browser, the rest in /code) |
 | ⌃L | learn mode: hints instead of answers (`/answer` reveals) |
 | ⌃F | attach the tray to the current case instead of starting a new one |
 | ⌃O | open the past case Fixel used |
 | ⌃N | new case |
 
-**Commands:** `/model sonnet|opus|gemini|gpt` · `/api [provider] [key]` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
+**Commands:** `/code [python|java|js|cpp]` · `/web` · `/model sonnet|opus|gemini|gpt` · `/api [provider] [key]` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
 `/cases <words>` · `/open <number>` · `/help` · `/exit`
 """
 
@@ -247,6 +249,9 @@ class UI:
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
         self.console.print("[dim]⌃T think harder · ⌃G it worked · ⌃Y copy · ⌃R run · ⌃S save note · ⌃N new[/]")
+
+    def playground_hint(self, where: str) -> None:
+        self.console.print(f"[dim]⌃P opens this code in the {where}[/]")
 
     def show_command(self, cmd: str) -> None:
         self.console.print(Panel(Syntax(cmd, "bash", theme="monokai", word_wrap=True), title="Run this?", border_style="yellow"))

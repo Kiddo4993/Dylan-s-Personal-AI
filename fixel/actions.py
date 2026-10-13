@@ -16,6 +16,10 @@ def copy_to_clipboard(text: str) -> None:
     subprocess.run(["pbcopy"], input=text.encode(), check=True)
 
 
+def open_url(url: str) -> None:
+    subprocess.run(["open", url], check=False)
+
+
 async def run_command(cmd: str, *, timeout: float = 60.0, cwd: Path | None = None) -> tuple[int | None, str]:
     """Run an already-confirmed command in zsh. Returns (exit code, or None on timeout; combined output)."""
     proc = await asyncio.create_subprocess_exec(

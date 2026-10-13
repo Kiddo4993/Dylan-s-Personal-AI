@@ -21,7 +21,14 @@ from .home import TIPS, Check, HomeInfo, mac_first_name
 from .hotkey import HotkeyListener
 from .memory import AboutMe, past_cases_context
 from .ocr import recognize_text_async
-from .parse import primary_fix, runnable_command
+from .parse import first_code_block, primary_fix, runnable_command
+from .playground.attachment import CodeAttachment
+from .playground.editor import Editor
+from .playground.langs import LANGS, resolve
+from .playground.runner import RunResult
+from .playground.runner import run as run_code
+from .playground.scratch import Scratch
+from .playground.server import PlaygroundServer
 from .prompts import build_system
 from .session import MAX_TRAY, Session
 from .ui import UI, KeyAction
@@ -38,6 +45,9 @@ class FixelApp:
         raise_window: Callable[[], Awaitable[None]] | None = None,
         casefile: CaseFile | None = None,
         ocr: Callable[[Path], Awaitable[str]] = recognize_text_async,
+        editor_factory: Callable[..., Editor] = Editor,
+        server_factory: Callable[..., PlaygroundServer] = PlaygroundServer,
+        open_url: Callable[[str], None] = actions.open_url,
     ) -> None:
         self.cfg = cfg
         self.ui = ui
@@ -55,6 +65,11 @@ class FixelApp:
         self._ocr = ocr
         self._raise_window = raise_window
         self._hotkeys: asyncio.Queue[None] = asyncio.Queue()
+        self.scratch = Scratch(cfg.playground_dir)
+        self.web: PlaygroundServer | None = None
+        self._editor_factory = editor_factory
+        self._server_factory = server_factory
+        self._open_url = open_url
 
     # ---- startup
 
@@ -147,10 +162,12 @@ class FixelApp:
                 if text.startswith("/"):
                     if not await self.handle_command(text):
                         break
-                elif text or self.session.tray:
+                elif text or self.session.tray or self.session.code:
                     pending = await self.ask(text)
         finally:
             capture_task.cancel()
+            if self.web is not None:
+                self.web.stop()
 
     # ---- capture
 
@@ -180,6 +197,8 @@ class FixelApp:
     def _sync_status(self) -> None:
         self.ui.status.tray = len(self.session.tray)
         self.ui.status.follow_up = self.session.follow_up
+        code = self.session.code
+        self.ui.status.code = LANGS[code.lang].label if code is not None else ""
 
     # ---- asking
 
@@ -213,6 +232,7 @@ class FixelApp:
         return (
             len(stripped) == 1
             and not self.session.tray
+            and self.session.code is None
             and not self.session.case.turns
             and self._held != text
         )
@@ -253,6 +273,9 @@ class FixelApp:
         self.session.record_answer(*answer)
         self._remember()
         self.ui.action_bar()
+        where = self._playground_target(self.session.case.answer)
+        if where:
+            self.ui.playground_hint("code editor" if where[0].run else "web playground")
 
     async def _interruptible(self, awaitable) -> tuple[bool, object]:
         """Await `awaitable` so that ⌃C cancels just it, not Fixel. Returns (finished, result)."""
@@ -301,6 +324,65 @@ class FixelApp:
             self.ui.warn(f"Case file error ({e}); memory is off this session.")
             self.casefile = None
 
+    # ---- playground
+
+    def _run_code(self, code: str, lang: str, stdin: str) -> Awaitable[RunResult]:
+        return run_code(code, lang, stdin=stdin, timeout=self.cfg.playground_timeout)
+
+    def attach_code(self, att: CodeAttachment) -> None:
+        """Playground code goes in the tray; Enter asks about it like a screenshot."""
+        self.session.attach_code(att)
+        self._sync_status()
+        self.ui.status.flash_msg(f"📝 {LANGS[att.lang].label} code is in the tray. Press Enter to ask, or type a question.")
+        if self._raise_window is not None:
+            asyncio.ensure_future(self._raise_window())
+
+    async def open_editor(self, lang: str, code: str | None = None) -> None:
+        editor = self._editor_factory(
+            self.scratch, lang, self.scratch.load(lang) if code is None else code, self._run_code
+        )
+        result = await editor.edit()
+        if result.attachment is not None:
+            self.attach_code(result.attachment)
+        else:
+            self.ui.info("Back from the editor. /code reopens it.")
+
+    def open_web(self, handoff: tuple[str, str] | None = None) -> None:
+        if self.web is None:
+            server = self._server_factory(asyncio.get_running_loop(), self.scratch, self._run_code, self.attach_code)
+            try:
+                server.start()
+            except OSError as e:
+                self.ui.error(f"Couldn't start the web playground ({e}). /code still works.")
+                return
+            self.web = server
+        if handoff is not None:
+            self.web.hand_off(*handoff)
+        self._open_url(self.web.url)
+        self.ui.info(f"Web playground open in your browser ({self.web.origin}).")
+
+    @staticmethod
+    def _playground_target(answer: str):
+        """(Lang, code) for the answer's first code block if the playground can open it, else None."""
+        block = first_code_block(answer) if answer else None
+        lang = resolve(block[0]) if block else None
+        return (lang, block[1]) if lang is not None else None
+
+    async def play(self) -> None:
+        """⌃P: open the answer's code. HTML goes to the browser, everything else to the terminal editor."""
+        if not self.session.case.answer:
+            self.ui.warn("Ask something first, then ⌃P opens its code.")
+            return
+        target = self._playground_target(self.session.case.answer)
+        if target is None:
+            self.ui.warn("This answer has no code the playground can open.")
+            return
+        lang, code = target
+        if lang.run:
+            await self.open_editor(lang.name, code)
+        else:
+            self.open_web((lang.name, code))
+
     # ---- keys and commands
 
     async def handle_action(self, name: str) -> None:
@@ -343,6 +425,8 @@ class FixelApp:
                 self.cfg.notes_dir, question=case.question, answer=case.answer, mode=mode, shots=case.shots
             )
             self.ui.info(f"Saved {path}")
+        elif name == "play":
+            await self.play()
         elif name == "learn":
             self._set_learn(not self.session.learn)
         elif name == "follow":
@@ -514,6 +598,16 @@ class FixelApp:
                 self.ui.warn("Usage: /open <number from /cases>")
             else:
                 self.ui.show_case(record)
+        elif command == "/code":
+            lang = resolve(arg) if arg else None
+            if arg and lang is None:
+                self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp.")
+            elif lang is not None and not lang.run:
+                self.ui.info("HTML runs in the web playground: /web")
+            else:
+                await self.open_editor(lang.name if lang else self.scratch.last_lang())
+        elif command == "/web":
+            self.open_web()
         else:
             self.ui.warn(f"Unknown command {command}. Try /help.")
         return True

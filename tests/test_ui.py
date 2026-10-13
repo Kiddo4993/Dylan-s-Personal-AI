@@ -126,3 +126,9 @@ def test_toolbar_shows_attached_code():
     assert text.startswith("📝 Java code in tray") and "⏎ ask" in text
     both = toolbar_text(Status(tray=1, code="Python"))
     assert both.startswith("📸 1 shot in tray · 📝 Python code in tray")
+
+
+def test_help_lists_playground(console):
+    UI(console).help()
+    out = console.file.getvalue()
+    assert "⌃P" in out and "/code" in out and "/web" in out
