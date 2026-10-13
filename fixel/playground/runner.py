@@ -11,7 +11,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from .langs import resolve
+from .java import java_entry
+from .langs import Lang, resolve
 
 OUTPUT_CAP = 64_000  # characters kept; reading continues so the program never blocks on a full pipe
 
@@ -38,8 +39,9 @@ async def run(code: str, lang: str, *, stdin: str = "", timeout: float = 10.0) -
     output, exit_code = "", 0
     with tempfile.TemporaryDirectory(prefix="fixel-play-") as tmp:
         work = Path(tmp)
-        (work / spec.filename).write_text(code)
-        for argv, feed in ((spec.build, ""), (spec.run, stdin)):
+        filename, build, run_argv = _steps(spec, code)
+        (work / filename).write_text(code)
+        for argv, feed in ((build, ""), (run_argv, stdin)):
             if not argv:
                 continue
             exit_code, out = await _exec(argv, work, feed, max(deadline - time.monotonic(), 0.1))
@@ -50,6 +52,17 @@ async def run(code: str, lang: str, *, stdin: str = "", timeout: float = 10.0) -
     if exit_code is None:
         output += f"\n[stopped after {timeout:g}s]"
     return RunResult(exit_code, output, time.monotonic() - started)
+
+
+def _steps(spec: Lang, code: str) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
+    """(source file name, build argv, run argv). Java compiles and runs the class that declares main,
+    so a helper class may come first; without javac, or without a main, the JDK's single-file launcher reports it."""
+    if spec.name == "java" and shutil.which("javac"):
+        entry = java_entry(code)
+        if entry:
+            filename, main_class = entry
+            return filename, ("javac", "-d", ".", filename), ("java", "-cp", ".", main_class)
+    return spec.filename, spec.build, spec.run
 
 
 def _cap(text: str) -> str:
@@ -85,23 +98,37 @@ async def _exec(argv: tuple[str, ...], cwd: Path, stdin: str, timeout: float) ->
 
     feeder = asyncio.ensure_future(feed())
     reader = asyncio.ensure_future(read())
+    async def exited() -> int:
+        # Not proc.wait(): asyncio only finishes that once every pipe closes, and a background child may hold one.
+        while proc.returncode is None:
+            await asyncio.sleep(0.05)
+        return proc.returncode
+
+    waiter = asyncio.ensure_future(exited())
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
     try:
-        done, _ = await asyncio.wait({reader}, timeout=timeout)
-        if not done:
+        await asyncio.wait({reader, waiter}, timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+        if not waiter.done():  # output closed, or nothing yet: the program itself still has until the deadline
+            await asyncio.wait({waiter}, timeout=max(deadline - loop.time(), 0))
+        if not waiter.done():
             _kill(proc)
             feeder.cancel()
             await asyncio.wait({reader}, timeout=2)  # the killed program's output closes; don't wait forever if not
             reader.cancel()
-            await proc.wait()
+            await waiter
             return None, buf.decode(errors="replace")
-        code = await proc.wait()
+        if not reader.done():  # finished, but something it started still holds the output open
+            await asyncio.wait({reader}, timeout=0.5)
+        _kill(proc)  # stop anything the finished program left running in the background
     except asyncio.CancelledError:  # ⌃C in the editor, or Fixel quitting
         _kill(proc)
-        feeder.cancel()
-        reader.cancel()
+        for task in (feeder, reader, waiter):
+            task.cancel()
         raise
     feeder.cancel()
-    return code, buf.decode(errors="replace")
+    reader.cancel()
+    return waiter.result(), buf.decode(errors="replace")
 
 
 def _kill(proc: asyncio.subprocess.Process) -> None:

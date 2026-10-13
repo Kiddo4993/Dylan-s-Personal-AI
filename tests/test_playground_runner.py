@@ -126,3 +126,19 @@ async def test_large_stdin_is_read_by_a_program_that_wants_it():
     code = "import sys\nlines = sys.stdin.read().split()\nprint(len(lines), sum(map(int, lines)))\n"
     result = await run(code, "python", stdin="2\n" * 150_000, timeout=10)
     assert result.exit_code == 0 and result.output == "150000 300000\n"
+
+
+async def test_finished_program_with_a_background_child_reports_its_exit(tmp_path):
+    pid_file = tmp_path / "child.pid"
+    code = (
+        "import subprocess\n"
+        f"p = subprocess.Popen(['sleep', '30']); open({str(pid_file)!r}, 'w').write(str(p.pid))\n"
+        "print('done')\n"
+    )
+    started = time.monotonic()
+    result = await run(code, "python", timeout=10)
+    assert result.exit_code == 0 and result.output == "done\n"
+    assert time.monotonic() - started < 4
+    time.sleep(0.2)
+    with pytest.raises(ProcessLookupError):  # the leftover child was cleaned up
+        os.kill(int(pid_file.read_text()), 0)

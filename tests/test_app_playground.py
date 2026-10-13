@@ -159,3 +159,13 @@ async def test_ide_command_rejects_unknown_language(tmp_path, console):
     app = make_app(tmp_path, console)
     await app.handle_command("/ide rust")
     assert "Unknown language 'rust'" in console.file.getvalue() and FakeServer.instances == []
+
+
+async def test_failed_ask_says_the_code_is_still_in_the_tray(tmp_path, console):
+    from fixel.brain import ProviderError
+
+    app = make_app(tmp_path, console)
+    app.provider = FakeProvider(error=ProviderError("Can't reach Anthropic."))
+    app.attach_code(CodeAttachment("python", "print(x)"))
+    assert await app.ask("") == ""
+    assert app.session.code is not None and "still in the tray" in console.file.getvalue()

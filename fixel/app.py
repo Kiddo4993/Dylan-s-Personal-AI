@@ -219,8 +219,9 @@ class FixelApp:
         if answer is None:
             self.session.rollback()
             self._sync_status()
-            if self.session.tray:
-                self.ui.info("Your screenshots are still in the tray. Press Enter to retry.")
+            if self.session.tray or self.session.code is not None:
+                what = "screenshots" if self.session.code is None else "code" if not self.session.tray else "screenshots and code"
+                self.ui.info(f"Your {what} {'is' if what == 'code' else 'are'} still in the tray. Press Enter to retry.")
             return text
         self._finish(answer)
         return ""
