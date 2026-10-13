@@ -9,10 +9,11 @@ from typing import Awaitable, Callable
 from prompt_toolkit.application import Application
 from prompt_toolkit.filters import Condition, has_focus
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout import ConditionalContainer, HSplit, Layout, Window
+from prompt_toolkit.layout import ConditionalContainer, HSplit, Layout, VSplit, Window
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.dimension import Dimension
 from prompt_toolkit.lexers import PygmentsLexer
+from prompt_toolkit.mouse_events import MouseEventType
 from prompt_toolkit.styles import merge_styles, style_from_pygments_cls
 from prompt_toolkit.widgets import TextArea
 from pygments.styles import get_style_by_name
@@ -52,12 +53,19 @@ class Editor:
         self.output = TextArea(
             text="F5 runs your code.", read_only=True, scrollbar=True, height=Dimension(preferred=8, max=12)
         )
+        self._picked = RUNNABLE.index(lang)  # the sidebar's highlighted row while it has focus
+        self.sidebar = FormattedTextControl(
+            self.sidebar_fragments, focusable=True, show_cursor=False, key_bindings=self._sidebar_bindings()
+        )
         rule = lambda: Window(height=1, char="─", style="class:rule")  # noqa: E731
-        body = HSplit([
+        main = HSplit([
             self.code,
             rule(),
             ConditionalContainer(HSplit([self.stdin, rule()]), filter=Condition(lambda: self.show_input)),
             self.output,
+        ])
+        body = HSplit([
+            VSplit([Window(self.sidebar, width=14), Window(width=1, char="│", style="class:rule"), main]),
             Window(FormattedTextControl(self._status_text), height=1, style="reverse"),
         ])
         self.app = Application(
@@ -69,7 +77,8 @@ class Editor:
             input=input,
             output=output,
         )
-        self.app.ttimeoutlen = 0.05  # Esc closes without a half-second wait
+        self.app.ttimeoutlen = 0.05  # how long a lone Esc byte waits to become part of an escape sequence
+        self.app.timeoutlen = 0.25  # how long Esc waits for a following key (Esc+f is ⌥→) before closing
 
     async def edit(self) -> EditorResult:
         return await self.app.run_async()
@@ -118,9 +127,39 @@ class Editor:
         finally:
             self.app.invalidate()
 
+    def sidebar_fragments(self):
+        """One row per scratch file; the open one is marked, and each row opens its file on click."""
+        focused = self.app.layout.has_focus(self.sidebar) if hasattr(self, "app") else False
+        fragments = [("class:sidebar.title", " Files\n")]
+        for i, lang in enumerate(RUNNABLE):
+            style = "class:sidebar.current" if lang == self.lang else "class:sidebar"
+            if focused and i == self._picked:
+                style += " reverse"
+            marker = "▸ " if lang == self.lang else "  "
+            fragments.append((style, f" {marker}{LANGS[lang].filename}\n", self._on_click(lang)))
+        return fragments
+
+    def _on_click(self, lang: str):
+        def handler(mouse_event) -> None:
+            if mouse_event.event_type == MouseEventType.MOUSE_UP:
+                self._open_file(lang)
+            else:
+                return NotImplemented
+
+        return handler
+
+    def _open_file(self, lang: str) -> None:
+        if not self._running and lang != self.lang:
+            self._switch_to(lang)
+        self.app.layout.focus(self.code)
+
     def _switch_language(self) -> None:
+        self._switch_to(RUNNABLE[(RUNNABLE.index(self.lang) + 1) % len(RUNNABLE)])
+
+    def _switch_to(self, lang: str) -> None:
         self.scratch.save(self.lang, self.code.text)
-        self.lang = RUNNABLE[(RUNNABLE.index(self.lang) + 1) % len(RUNNABLE)]
+        self.lang = lang
+        self._picked = RUNNABLE.index(lang)
         text = self.scratch.load(self.lang)
         self.code.text, self._opened_with = text, text
         self.code.lexer = self._lexer()  # TextArea reads it through a DynamicLexer
@@ -154,12 +193,35 @@ class Editor:
         def _(event) -> None:
             self._close(attach=True)
 
-        @kb.add("escape", eager=True)
+        @kb.add("f4")
+        def _(event) -> None:
+            on_sidebar = event.app.layout.has_focus(self.sidebar)
+            self._picked = RUNNABLE.index(self.lang)
+            event.app.layout.focus(self.code if on_sidebar else self.sidebar)
+
+        @kb.add("escape")  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
         def _(event) -> None:
             self._close(attach=False)
 
         @kb.add("tab", filter=has_focus(self.code))
         def _(event) -> None:
             event.current_buffer.insert_text("    ")
+
+        return kb
+
+    def _sidebar_bindings(self) -> KeyBindings:
+        kb = KeyBindings()
+
+        @kb.add("up")
+        def _(event) -> None:
+            self._picked = (self._picked - 1) % len(RUNNABLE)
+
+        @kb.add("down")
+        def _(event) -> None:
+            self._picked = (self._picked + 1) % len(RUNNABLE)
+
+        @kb.add("enter")
+        def _(event) -> None:
+            self._open_file(RUNNABLE[self._picked])
 
         return kb
