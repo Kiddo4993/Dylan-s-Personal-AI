@@ -231,3 +231,33 @@ async def test_ctrl_g_goes_to_a_line(tmp_path, pipe):
     pipe.send_text(CTRL_G + "99" + ENTER)  # past the end: the last line
     await until(lambda: editor.code.document.cursor_position_row == 4)
     await finish(pipe, task)
+
+
+# ---- /ide terminal
+
+
+async def test_ide_terminal_opens_the_terminal_ide(tmp_path, console):
+    from test_app_playground import FakeEditor, FakeServer, make_app
+
+    app = make_app(tmp_path, console)
+    await app.handle_command("/ide terminal")
+    await app.handle_command("/ide terminal java")
+    assert [lang for lang, _ in FakeEditor.opened] == ["python", "java"]
+    assert FakeServer.instances == []  # the browser IDE stays closed
+
+
+async def test_ide_terminal_rejects_html_and_unknown_languages(tmp_path, console):
+    from test_app_playground import FakeEditor, make_app
+
+    app = make_app(tmp_path, console)
+    await app.handle_command("/ide terminal html")
+    await app.handle_command("/ide terminal rust")
+    out = console.file.getvalue()
+    assert "/ide" in out and "Unknown language 'rust'" in out and FakeEditor.opened == []
+
+
+def test_help_mentions_the_terminal_ide(console):
+    from fixel.ui import UI
+
+    UI(console).help()
+    assert "/ide terminal" in console.file.getvalue()

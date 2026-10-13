@@ -361,6 +361,16 @@ class FixelApp:
         self._open_url(self.web.url)
         self.ui.info(f"Web playground open in your browser ({self.web.origin}).")
 
+    async def _terminal_ide(self, arg: str) -> None:
+        """/code [lang] and /ide terminal [lang]: the IDE inside the terminal."""
+        lang = resolve(arg) if arg else None
+        if arg and lang is None:
+            self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp.")
+        elif lang is not None and not lang.run:
+            self.ui.info("HTML runs in the browser IDE: /ide html (or /web)")
+        else:
+            await self.open_editor(lang.name if lang else self.scratch.last_lang())
+
     @staticmethod
     def _playground_target(answer: str):
         """(Lang, code) for the answer's first code block if the playground can open it, else None."""
@@ -599,13 +609,9 @@ class FixelApp:
             else:
                 self.ui.show_case(record)
         elif command == "/code":
-            lang = resolve(arg) if arg else None
-            if arg and lang is None:
-                self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp.")
-            elif lang is not None and not lang.run:
-                self.ui.info("HTML runs in the web playground: /web")
-            else:
-                await self.open_editor(lang.name if lang else self.scratch.last_lang())
+            await self._terminal_ide(arg)
+        elif command == "/ide" and arg.split(" ", 1)[0].lower() == "terminal":
+            await self._terminal_ide(arg.partition(" ")[2].strip())
         elif command in ("/ide", "/web"):
             lang = resolve(arg) if arg else None
             if arg and lang is None:

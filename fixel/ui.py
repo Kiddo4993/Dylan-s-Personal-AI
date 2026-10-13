@@ -61,7 +61,7 @@ double-tap again to add more (up to 5).
 | ⌃O | open the past case Fixel used |
 | ⌃N | new case |
 
-**Commands:** `/ide [language]` (the IDE in your browser) · `/code [python|java|js|cpp]` (editor in the terminal) · `/model sonnet|opus|gemini|gpt` · `/api [provider] [key]` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
+**Commands:** `/ide [language]` (the IDE in your browser) · `/ide terminal [language]` or `/code` (the IDE in the terminal) · `/model sonnet|opus|gemini|gpt` · `/api [provider] [key]` · `/learn [on|off]` · `/answer` · `/remember <fact>` · `/memory` · `/forget <n>` · \
 `/cases <words>` · `/open <number>` · `/help` · `/exit`
 """
 
