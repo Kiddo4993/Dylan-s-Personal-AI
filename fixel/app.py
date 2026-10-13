@@ -553,6 +553,8 @@ class FixelApp:
             return False
         if command == "/help":
             self.ui.help()
+        elif command == "/instruction":
+            self.ui.instructions()
         elif command == "/api":
             await self.handle_api(arg)
         elif command == "/model":
@@ -620,7 +622,7 @@ class FixelApp:
             else:
                 self.open_web((lang.name, self.scratch.load(lang.name)) if lang else None)
         else:
-            self.ui.warn(f"Unknown command {command}. Try /help.")
+            self.ui.warn(f"Unknown command {command}. Type /instruction to see every command.")
         return True
 
 

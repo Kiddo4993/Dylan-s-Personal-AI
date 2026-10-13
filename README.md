@@ -63,7 +63,7 @@ fixel --here    # runs in the current terminal instead
 | ⌃N | new case |
 | ⌃C | stop an answer that's streaming |
 
-Commands: `/ide [language]`, `/ide terminal [language]`, `/code [python|java|js|cpp]`, `/model sonnet|opus|gemini|gpt`, `/api [provider] [key]`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/exit` (or `/quit`).
+Commands (`/instruction` lists every one): `/ide [language]`, `/ide terminal [language]`, `/code [python|java|js|cpp]`, `/model sonnet|opus|gemini|gpt`, `/api [provider] [key]`, `/learn [on|off]`, `/answer`, `/remember <fact>`, `/memory`, `/forget <n>`, `/cases <words>`, `/open <n>`, `/help`, `/exit` (or `/quit`).
 
 ## Playground
 
