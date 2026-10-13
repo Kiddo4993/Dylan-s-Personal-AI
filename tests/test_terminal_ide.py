@@ -88,3 +88,27 @@ async def test_clicking_a_file_in_the_sidebar_opens_it(tmp_path, pipe):
     handlers["main.cpp"](click)
     assert editor.lang == "cpp" and "#include" in editor.code.text
     await finish(pipe, task)
+
+
+# ---- status bar
+
+
+async def test_status_bar_shows_position_and_modified(tmp_path, pipe):
+    scratch = Scratch(tmp_path)
+    editor = Editor(scratch, "python", scratch.load("python"), fake_run, input=pipe, output=DummyOutput())
+    task = asyncio.create_task(editor.edit())
+    await asyncio.sleep(0.05)
+    status = editor.status_text()
+    assert "Python" in status and "Ln 1, Col 1" in status and "modified" not in status
+    pipe.send_text("ab")
+    await until(lambda: "Col 3" in editor.status_text())
+    assert "modified" in editor.status_text()
+    pipe.send_text("\x1b[15~")  # F5 saves before running
+    await until(lambda: "modified" not in editor.status_text())
+    await finish(pipe, task)
+
+
+async def test_code_handed_in_that_differs_from_the_saved_file_counts_as_modified(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="from ctrl+p")
+    assert "modified" in editor.status_text()
+    await finish(pipe, task)

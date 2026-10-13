@@ -46,6 +46,7 @@ class Editor:
         self.show_input = False
         self._run = run
         self._opened_with = code
+        self._saved = scratch.load(lang)  # what's in the scratch file, for the modified marker
         self._ran_code: str | None = None  # the code `last` came from
         self._task: asyncio.Task | None = None
         self.code = TextArea(text=code, lexer=self._lexer(), line_numbers=True, scrollbar=True)
@@ -66,7 +67,7 @@ class Editor:
         ])
         body = HSplit([
             VSplit([Window(self.sidebar, width=14), Window(width=1, char="│", style="class:rule"), main]),
-            Window(FormattedTextControl(self._status_text), height=1, style="reverse"),
+            Window(FormattedTextControl(self.status_text), height=1, style="reverse"),
         ])
         self.app = Application(
             layout=Layout(body, focused_element=self.code),
@@ -88,9 +89,17 @@ class Editor:
     def _lexer(self) -> PygmentsLexer:
         return PygmentsLexer.from_filename(LANGS[self.lang].filename)
 
-    def _status_text(self) -> str:
+    def status_text(self) -> str:
+        doc = self.code.document
+        where = f"Ln {doc.cursor_position_row + 1}, Col {doc.cursor_position_col + 1}"
+        modified = " · modified" if self.code.text != self._saved else ""
         running = " · running… ⌃C stops" if self._running else ""
-        return f" {LANGS[self.lang].label} · F5 run · F3 input · F2 language · ⌃A ask Fixel · Esc back{running} "
+        keys = "F5 run · F3 input · F4 files · ⌃A ask Fixel · Esc back"
+        return f" {LANGS[self.lang].label} · {where}{modified}{running}   {keys} "
+
+    def _save(self) -> None:
+        self.scratch.save(self.lang, self.code.text)
+        self._saved = self.code.text
 
     @property
     def _running(self) -> bool:
@@ -106,12 +115,12 @@ class Editor:
         if self._running:
             self._task.cancel()
         if self.code.text != self._opened_with or self.last is not None:
-            self.scratch.save(self.lang, self.code.text)
+            self._save()
         self.app.exit(result=EditorResult(self.lang, self.code.text, self._attachment() if attach else None))
 
     async def _run_now(self) -> None:
         code = self.code.text
-        self.scratch.save(self.lang, code)
+        self._save()
         self.output.text = "Running…"
         self.app.invalidate()
         try:
@@ -157,10 +166,11 @@ class Editor:
         self._switch_to(RUNNABLE[(RUNNABLE.index(self.lang) + 1) % len(RUNNABLE)])
 
     def _switch_to(self, lang: str) -> None:
-        self.scratch.save(self.lang, self.code.text)
+        self._save()
         self.lang = lang
         self._picked = RUNNABLE.index(lang)
         text = self.scratch.load(self.lang)
+        self._saved = text
         self.code.text, self._opened_with = text, text
         self.code.lexer = self._lexer()  # TextArea reads it through a DynamicLexer
         self.last, self._ran_code = None, None
