@@ -98,6 +98,30 @@ async def test_api_command_interactive_selection(tmp_path, console, monkeypatch)
     assert "OpenAI is ready! Switch to it anytime with `/model gpt`" in out
 
 
+async def test_api_command_hides_the_pasted_key(tmp_path, console, monkeypatch):
+    monkeypatch.setattr(app_module, "set_api_key", lambda v, k: None)
+    monkeypatch.setattr(app_module, "check_api_key", lambda v, k, m: "ok")
+    app = make_app(tmp_path, console, FakeProvider())
+    calls = []
+
+    async def fake_ask_input(prompt, **kwargs):
+        calls.append(kwargs)
+        return "sk-ant-api03-hidden"
+
+    app.ui.ask_input = fake_ask_input
+    await app.handle_command("/api anthropic")
+
+    assert calls == [{"is_password": True}]
+
+
+async def test_api_command_unknown_token_is_not_echoed(tmp_path, console):
+    app = make_app(tmp_path, console, FakeProvider())
+    await app.handle_command("/api xq-9f8a7b6c5d4e3f2a1b0c")
+    out = console.file.getvalue()
+    assert "Unknown provider or unrecognized key format" in out
+    assert "9f8a7b6c5d4e3f2a1b0c" not in out
+
+
 async def test_api_command_cancelled_provider(tmp_path, console):
     app = make_app(tmp_path, console, FakeProvider())
     async def empty_input(*args, **kwargs): return ""

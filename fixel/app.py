@@ -487,9 +487,8 @@ class FixelApp:
             elif token.lower() in aliases:
                 vendor = aliases[token.lower()]
             else:
-                self.ui.warn(
-                    f"Unknown provider or unrecognized key format: '{token}'. Options: anthropic, gemini, openai."
-                )
+                # The token isn't echoed back: it may be a key in a format we don't recognize.
+                self.ui.warn("Unknown provider or unrecognized key format. Options: anthropic, gemini, openai.")
                 return
 
         if not vendor:
@@ -512,7 +511,8 @@ class FixelApp:
             label = {"anthropic": "Anthropic (Claude)", "gemini": "Google Gemini", "openai": "OpenAI"}.get(
                 vendor, vendor.title()
             )
-            key = await self.ui.ask_input(f"Paste your {label} API key (Enter to cancel): ")
+            # Hidden: Fixel screenshots this screen, so a visible key could end up in one.
+            key = await self.ui.ask_input(f"Paste your {label} API key (hidden; Enter to cancel): ", is_password=True)
             if not key:
                 self.ui.info("Cancelled. No key saved.")
                 return
