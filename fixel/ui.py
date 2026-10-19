@@ -40,8 +40,34 @@ double-tap again to add more (up to 5).
 
 **Ask:** press **Enter**, or type a question first. Typing after an answer asks a follow-up.
 
-**Commands:** type **/** to see this list as a menu.
+**Commands:** type **/** to see this list as a menu, or `/instruction` for every command and key.
 """
+
+
+SHORTCUTS = (
+    ("⌥⌥", "screenshot a region (double-tap Right Option)"),
+    ("Enter", "ask (type a question first, or just press Enter)"),
+    ("⌃T", "think harder: re-answer with deep thinking"),
+    ("⌃G", "that worked: Fixel reaches for this fix first next time"),
+    ("⌃Y", "copy the fix, answer or draft"),
+    ("⌃R", "run the suggested shell command (asks first)"),
+    ("⌃S", "save this case as a note"),
+    ("⌃P", "open the answer's code in the IDE"),
+    ("⌃L", "learn mode on/off"),
+    ("⌃F", "attach the tray to the current case"),
+    ("⌃O", "open the past case Fixel used"),
+    ("⌃N", "new case"),
+    ("⌃C", "stop an answer that's streaming"),
+)
+IDE_KEYS = (
+    ("F5", "run"),
+    ("F3", "input your program reads"),
+    ("F2 / F4", "next file / file list"),
+    ("⌃Space", "complete a word"),
+    ("⌃F / ⌃G", "find / go to line"),
+    ("⌃A", "ask Fixel about the code and its output"),
+    ("Esc", "back to Fixel"),
+)
 
 
 @dataclass(frozen=True)
@@ -194,6 +220,18 @@ class UI:
         self.console.print(table)
         shortcuts = ", ".join(f"{shortcut_label(c.key)} {c.name}" for c in COMMANDS if c.key)
         self.console.print(Text(f"\nShortcuts, if you like keys: {shortcuts}", style="dim"))
+
+    def instructions(self) -> None:
+        """/instruction: every command and shortcut Fixel has."""
+        commands = tuple((f"{c.name} {c.usage}".strip(), c.summary) for c in COMMANDS)
+        for title, rows in (("Commands", commands), ("Shortcuts", SHORTCUTS), ("In /ide terminal", IDE_KEYS)):
+            table = Table(title=title, title_justify="left", title_style="bold", show_header=False, box=None, padding=(0, 2, 0, 0))
+            table.add_column(style="cyan", no_wrap=True)
+            table.add_column()
+            for keys, does in rows:
+                table.add_row(escape(keys), escape(does))  # "[language]" is text, not Rich markup
+            self.console.print(table)
+            self.console.print()
 
     @staticmethod
     def answer_view(header: Header | None, body: str):

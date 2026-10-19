@@ -32,11 +32,12 @@ COMMANDS = (
     Command("/cases", "search your past cases", usage="<words>"),
     Command("/open", "show the past case Fixel used, or one from /cases", usage="[number]", action="open", key="c-o"),
     Command("/play", "open the answer's code: HTML in the browser IDE, the rest in /code", action="play", key="c-p"),
-    Command("/ide", "the IDE in your browser: live HTML preview, Run, Ask Fixel (/web works too)", usage="[language]"),
-    Command("/code", "full-screen code editor in the terminal", usage="[python|java|js|cpp]"),
+    Command("/ide", "the IDE in your browser: live HTML preview, Run, Ask Fixel (/web works too)", usage="[terminal] [language]"),
+    Command("/code", "the IDE in the terminal (same as /ide terminal)", usage="[python|java|js|cpp]"),
     Command("/model", "switch AI model", usage="sonnet|opus|gemini|gpt"),
     Command("/api", "add or change a provider's API key", usage="[provider] [key]"),
     Command("/help", "show every command"),
+    Command("/instruction", "every command and key, including the terminal IDE's"),
     Command("/exit", "close Fixel"),
 )
 BY_NAME = {command.name: command for command in COMMANDS}

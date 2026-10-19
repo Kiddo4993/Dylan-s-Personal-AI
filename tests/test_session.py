@@ -210,3 +210,23 @@ def test_tray_text_includes_attached_code_and_new_case_clears_it(tmp_path):
     assert "print(x)" in s.tray_text() and "NameError" in s.tray_text()
     s.new_case()
     assert s.code is None and s.tray_text() == ""
+
+
+def test_rollback_keeps_code_and_shots_that_arrived_while_answering(tmp_path):
+    s = Session()
+    s.attach_code(FAILED)
+    s.build_user_turn("")
+    newer = CodeAttachment("java", "class B {}")
+    s.attach_code(newer)  # "Ask Fixel" clicked in the browser while the answer streamed
+    later = shot(tmp_path, "later")
+    s.add_shot(later)  # ⌥⌥ while the answer streamed
+    s.rollback()
+    assert s.code == newer and s.tray == [later]
+
+
+def test_rollback_restores_the_sent_code_when_nothing_newer_arrived():
+    s = Session()
+    s.attach_code(FAILED)
+    s.build_user_turn("")
+    s.rollback()
+    assert s.code == FAILED

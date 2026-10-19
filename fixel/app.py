@@ -220,8 +220,9 @@ class FixelApp:
         if answer is None:
             self.session.rollback()
             self._sync_status()
-            if self.session.tray:
-                self.ui.info("Your screenshots are still in the tray. Press Enter to retry.")
+            if self.session.tray or self.session.code is not None:
+                what = "screenshots" if self.session.code is None else "code" if not self.session.tray else "screenshots and code"
+                self.ui.info(f"Your {what} {'is' if what == 'code' else 'are'} still in the tray. Press Enter to retry.")
             return text
         self._finish(answer)
         return ""
@@ -361,6 +362,16 @@ class FixelApp:
             self.web.hand_off(*handoff)
         self._open_url(self.web.url)
         self.ui.info(f"Web playground open in your browser ({self.web.origin}).")
+
+    async def _terminal_ide(self, arg: str) -> None:
+        """/code [lang] and /ide terminal [lang]: the IDE inside the terminal."""
+        lang = resolve(arg) if arg else None
+        if arg and lang is None:
+            self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp.")
+        elif lang is not None and not lang.run:
+            self.ui.info("HTML runs in the browser IDE: /ide html (or /web)")
+        else:
+            await self.open_editor(lang.name if lang else self.scratch.last_lang())
 
     @staticmethod
     def _playground_target(answer: str):
@@ -546,6 +557,8 @@ class FixelApp:
             return True
         if command == "/help":
             self.ui.help()
+        elif command == "/instruction":
+            self.ui.instructions()
         elif command == "/api":
             await self.handle_api(arg)
         elif command == "/model":
@@ -603,13 +616,9 @@ class FixelApp:
             else:
                 self.ui.show_case(record)
         elif command == "/code":
-            lang = resolve(arg) if arg else None
-            if arg and lang is None:
-                self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp.")
-            elif lang is not None and not lang.run:
-                self.ui.info("HTML runs in the web playground: /web")
-            else:
-                await self.open_editor(lang.name if lang else self.scratch.last_lang())
+            await self._terminal_ide(arg)
+        elif command == "/ide" and arg.split(" ", 1)[0].lower() == "terminal":
+            await self._terminal_ide(arg.partition(" ")[2].strip())
         elif command in ("/ide", "/web"):
             lang = resolve(arg) if arg else None
             if arg and lang is None:
@@ -617,7 +626,7 @@ class FixelApp:
             else:
                 self.open_web((lang.name, self.scratch.load(lang.name)) if lang else None)
         else:
-            self.ui.warn(f"Unknown command {command}. Try /help.")
+            self.ui.warn(f"Unknown command {command}. Type /instruction to see every command.")
         return True
 
 

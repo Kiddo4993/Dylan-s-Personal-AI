@@ -67,10 +67,11 @@ fixel --here    # runs in the current terminal instead
 | Ctrl+C | stop an answer that's streaming |
 
 Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, Ctrl+G `/worked`, Ctrl+Y `/copy`, Ctrl+R `/run`, Ctrl+S `/save`, Ctrl+N `/new`, Ctrl+F `/follow`, Ctrl+L `/learn`, Ctrl+O `/open`, Ctrl+P `/play`), listed at the bottom of `/help`.
+`/instruction` lists every command and key in one place, including the terminal IDE's.
 
 ## Playground
 
-- `/code [python|java|js|cpp]` opens a full-screen editor: **F5** run · **F3** input (stdin) · **F2** language · **⌃A** ask Fixel about the code and its output · **Esc** back.
+- `/ide terminal [python|java|js|cpp]` (or `/code`) opens the IDE inside the terminal: a file sidebar (**F4**), line/column and a modified marker in the status bar, **⌃Space** completion, auto-indent (**Shift+Tab** dedents), **⌃F** find, **⌃G** go to line, **F5** run · **F3** input (stdin) · **F2** next language · **⌃A** ask Fixel about the code and its output · **Esc** back.
 - `/ide [language]` opens the IDE in your browser (the VS Code editor): live HTML preview, a Run button for the same four languages, and **Ask Fixel**. `/web` does the same.
 - **`/play`** (Ctrl+P) opens an answer's code: HTML in the browser, everything else in `/code`. Nothing runs until you press Run.
 - Code runs on your Mac with your permissions (it's a scratchpad, not a sandbox). Runs stop after `playground_timeout` seconds (default 10). Your scratch code lives in `~/.fixel/playground/`.
