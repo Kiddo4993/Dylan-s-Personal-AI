@@ -134,5 +134,5 @@ async def _exec(argv: tuple[str, ...], cwd: Path, stdin: str, timeout: float) ->
 def _kill(proc: asyncio.subprocess.Process) -> None:
     try:
         os.killpg(proc.pid, signal.SIGKILL)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):  # already gone, or only zombies left (macOS says EPERM)
         pass

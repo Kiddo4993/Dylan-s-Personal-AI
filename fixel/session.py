@@ -117,7 +117,8 @@ class Session:
         del undo.case.shots[undo.shots :]
         undo.case.question = undo.question
         undo.case.screen_text = undo.screen_text
-        self.tray = undo.tray + [path for path in self.tray if path not in undo.tray]  # keep shots taken meanwhile
+        meanwhile = [path for path in self.tray if path not in undo.tray]  # shots taken while it streamed
+        self.tray = (undo.tray + meanwhile)[:MAX_TRAY]
         self.follow_up = undo.follow_up
         if self.code is None:  # keep code that arrived while the answer streamed; it's newer
             self.code = undo.code

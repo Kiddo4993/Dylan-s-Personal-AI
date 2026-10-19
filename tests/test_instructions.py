@@ -62,3 +62,11 @@ async def test_arguments_in_brackets_are_shown_not_eaten_as_markup(tmp_path, con
     out = console.file.getvalue()
     for command in COMMANDS:
         assert f"{command.name} {command.usage}".strip() in out
+
+
+async def test_instruction_shows_each_commands_ctrl_key(tmp_path, console):
+    await make_app(tmp_path, console).handle_command("/instruction")
+    out = console.file.getvalue()
+    for command in COMMANDS:
+        if command.key:
+            assert f"⌃{command.key.removeprefix('c-').upper()}" in out

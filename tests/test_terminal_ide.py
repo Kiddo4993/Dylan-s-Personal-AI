@@ -108,9 +108,11 @@ async def test_status_bar_shows_position_and_modified(tmp_path, pipe):
     await finish(pipe, task)
 
 
-async def test_code_handed_in_that_differs_from_the_saved_file_counts_as_modified(tmp_path, pipe):
+async def test_code_handed_in_is_modified_only_once_edited(tmp_path, pipe):
     editor, task = start(tmp_path, pipe, code="from ctrl+p")
-    assert "modified" in editor.status_text()
+    assert "modified" not in editor.status_text()  # Esc now wouldn't save it, so nothing is unsaved
+    pipe.send_text("x")
+    await until(lambda: "modified" in editor.status_text())
     await finish(pipe, task)
 
 
@@ -230,6 +232,36 @@ async def test_ctrl_g_goes_to_a_line(tmp_path, pipe):
     assert editor.app.layout.has_focus(editor.code)
     pipe.send_text(CTRL_G + "99" + ENTER)  # past the end: the last line
     await until(lambda: editor.code.document.cursor_position_row == 4)
+    await finish(pipe, task)
+
+
+async def test_go_to_line_ignores_digits_that_are_not_numbers(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="1\n2")
+    pipe.send_text(CTRL_G)
+    await until(lambda: editor.app.layout.has_focus(editor.bar))
+    pipe.send_text("²" + ENTER)  # isdigit() says yes, int() says no
+    await until(lambda: editor.bar_mode is None)
+    assert editor.code.document.cursor_position_row == 0 and not task.done()
+    await finish(pipe, task)
+
+
+async def test_enter_inside_the_indentation_does_not_indent_twice(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="if x:\n    y")
+    editor.code.buffer.cursor_position = len("if x:\n")  # start of the indented line: open a line above
+    pipe.send_text(ENTER)
+    await until(lambda: editor.code.text == "if x:\n\n    y")
+    await finish(pipe, task)
+
+
+async def test_esc_closes_the_completion_menu_not_the_editor(tmp_path, pipe):
+    editor, task = start(tmp_path, pipe, code="value = 1\nva")
+    at_end(editor)
+    pipe.send_text(CTRL_SPACE)
+    await until(lambda: "value" in offered(editor))
+    pipe.send_text(ESC)
+    await until(lambda: editor.code.buffer.complete_state is None)
+    await asyncio.sleep(0.1)
+    assert not task.done()
     await finish(pipe, task)
 
 

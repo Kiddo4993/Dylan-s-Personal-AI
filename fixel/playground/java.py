@@ -11,6 +11,7 @@ import re
 _NOISE = re.compile(r'//[^\n]*|/\*.*?\*/|"(?:\\.|[^"\\\n])*"|\'(?:\\.|[^\'\\\n])*\'', re.S)
 _TOKEN = re.compile(r"\b(?P<public>public\s+(?:(?:final|abstract|static)\s+)*)?class\s+(?P<name>\w+)|(?P<brace>[{}])"
                     r"|(?P<main>\bstatic\s+void\s+main\s*\()")
+_PACKAGE = re.compile(r"^\s*package\s+([\w.]+)\s*;", re.M)
 
 
 def java_entry(code: str) -> tuple[str, str] | None:
@@ -19,6 +20,7 @@ def java_entry(code: str) -> tuple[str, str] | None:
     stack: list[str | None] = []  # one entry per open brace: the class it opens, or None
     pending: str | None = None  # a class name waiting for its opening brace
     public_file = None
+    entry = None  # the class that declares main, once found; keep going, a public class may come later
     for token in _TOKEN.finditer(text):
         if token["name"]:
             pending = token["name"]
@@ -30,8 +32,11 @@ def java_entry(code: str) -> tuple[str, str] | None:
         elif token["brace"] == "}":
             if stack:
                 stack.pop()
-        elif token["main"]:
+        elif token["main"] and entry is None:
             classes = [name for name in stack if name]
             if classes:
-                return f"{public_file or 'Main'}.java", "$".join(classes)
-    return None
+                entry = "$".join(classes)
+    if entry is None:
+        return None
+    package = _PACKAGE.search(text)  # javac -d puts packaged classes in folders; java wants the full name
+    return f"{public_file or 'Main'}.java", f"{package[1]}.{entry}" if package else entry

@@ -47,16 +47,7 @@ double-tap again to add more (up to 5).
 SHORTCUTS = (
     ("⌥⌥", "screenshot a region (double-tap Right Option)"),
     ("Enter", "ask (type a question first, or just press Enter)"),
-    ("⌃T", "think harder: re-answer with deep thinking"),
-    ("⌃G", "that worked: Fixel reaches for this fix first next time"),
-    ("⌃Y", "copy the fix, answer or draft"),
-    ("⌃R", "run the suggested shell command (asks first)"),
-    ("⌃S", "save this case as a note"),
-    ("⌃P", "open the answer's code in the IDE"),
-    ("⌃L", "learn mode on/off"),
-    ("⌃F", "attach the tray to the current case"),
-    ("⌃O", "open the past case Fixel used"),
-    ("⌃N", "new case"),
+    *((f"⌃{c.key.removeprefix('c-').upper()}", c.summary) for c in COMMANDS if c.key),  # same keys as /help
     ("⌃C", "stop an answer that's streaming"),
 )
 IDE_KEYS = (

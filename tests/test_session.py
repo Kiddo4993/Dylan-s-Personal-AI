@@ -230,3 +230,15 @@ def test_rollback_restores_the_sent_code_when_nothing_newer_arrived():
     s.build_user_turn("")
     s.rollback()
     assert s.code == FAILED
+
+
+def test_rollback_never_overfills_the_tray(tmp_path):
+    s = Session()
+    sent = [shot(tmp_path, f"sent{i}") for i in range(MAX_TRAY)]
+    for path in sent:
+        s.add_shot(path)
+    s.build_user_turn("")
+    for i in range(MAX_TRAY):
+        s.add_shot(shot(tmp_path, f"new{i}"))  # ⌥⌥ while the answer streamed: the tray looked empty
+    s.rollback()
+    assert s.tray == sent  # the retry sends what was asked; there's no room left for the rest

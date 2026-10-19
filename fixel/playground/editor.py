@@ -41,7 +41,7 @@ INDENT = "    "
 
 def next_line_indent(line: str, before_cursor: str) -> str:
     """Indentation for a new line: the current line's, plus one level after a ':' or '{'."""
-    indent = line[: len(line) - len(line.lstrip(" \t"))]
+    indent = line[: len(line) - len(line.lstrip(" \t"))][: len(before_cursor)]  # Enter inside it: the rest moves down
     return indent + INDENT if before_cursor.rstrip().endswith((":", "{")) else indent
 
 
@@ -66,8 +66,7 @@ class Editor:
         self.last: RunResult | None = None
         self.show_input = False
         self._run = run
-        self._opened_with = code
-        self._saved = scratch.load(lang)  # what's in the scratch file, for the modified marker
+        self._saved = code  # what Esc leaves alone: as opened, then as last saved. Differing from it means modified
         self._ran_code: str | None = None  # the code `last` came from
         self._task: asyncio.Task | None = None
         self.code = TextArea(
@@ -147,7 +146,7 @@ class Editor:
         if self.bar_mode == "find":
             self._no_match = not self._find_next(buffer.text)
             return True
-        if buffer.text.strip().isdigit():
+        if buffer.text.strip().isdecimal():
             lines = self.code.text.split("\n")
             row = min(max(int(buffer.text), 1), len(lines)) - 1
             self.code.buffer.cursor_position = sum(len(line) + 1 for line in lines[:row])
@@ -184,7 +183,7 @@ class Editor:
     def _close(self, attach: bool) -> None:
         if self._running:
             self._task.cancel()
-        if self.code.text != self._opened_with or self.last is not None:
+        if self.code.text != self._saved:  # edited, so the status bar says modified; ⌃P code just looked at stays out
             self._save()
         self.app.exit(result=EditorResult(self.lang, self.code.text, self._attachment() if attach else None))
 
@@ -241,7 +240,7 @@ class Editor:
         self._picked = RUNNABLE.index(lang)
         text = self.scratch.load(self.lang)
         self._saved = text
-        self.code.text, self._opened_with = text, text
+        self.code.text = text
         self.code.lexer = self._lexer()  # TextArea reads it through a DynamicLexer
         self.last, self._ran_code = None, None
         self.output.text = "F5 runs your code."
@@ -295,7 +294,10 @@ class Editor:
 
         @kb.add("escape", filter=~in_bar)  # not eager: ⌥←/⌥→ arrive as Esc+b / Esc+f and must stay word jumps
         def _(event) -> None:
-            self._close(attach=False)
+            if self.code.buffer.complete_state:  # Esc dismisses the ⌃Space menu first
+                self.code.buffer.cancel_completion()
+            else:
+                self._close(attach=False)
 
         in_code = has_focus(self.code)
 

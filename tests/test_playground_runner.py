@@ -142,3 +142,11 @@ async def test_finished_program_with_a_background_child_reports_its_exit(tmp_pat
     time.sleep(0.2)
     with pytest.raises(ProcessLookupError):  # the leftover child was cleaned up
         os.kill(int(pid_file.read_text()), 0)
+
+
+def test_cleanup_kill_ignores_a_group_it_may_not_signal(monkeypatch):
+    def denied(pid, sig):
+        raise PermissionError  # macOS, when only zombies are left in the group
+
+    monkeypatch.setattr(runner.os, "killpg", denied)
+    runner._kill(type("Proc", (), {"pid": 123})())
