@@ -298,7 +298,7 @@ class UI:
             return
         table = Table(box=None, header_style="bold", padding=(0, 1), expand=True)
         table.add_column("Due", no_wrap=True)
-        table.add_column("Class", max_width=18, overflow="ellipsis", no_wrap=True)
+        table.add_column("Class", max_width=16, overflow="ellipsis", no_wrap=True)
         table.add_column("Assignment", ratio=2)
         table.add_column("Priority", no_wrap=True)
         table.add_column("Hrs", justify="right", no_wrap=True)
@@ -306,7 +306,7 @@ class UI:
         table.add_column("Tip", ratio=3, style="dim")
         for a in assignments:
             plan = plans.get(a.uid)
-            title = Text("✓ ", style="green") + Text(a.title) if a.submitted else Text(a.title)
+            title = Text.assemble(("✓ ", "green"), a.title) if a.submitted else Text(a.title)  # only the tick is green
             table.add_row(
                 due_label(a.due, now, a.submitted),
                 Text(a.course),  # Text, not markup: a course named "[Period 3]" stays literal
@@ -320,8 +320,11 @@ class UI:
 
 
 def day_label(day, now: datetime) -> str:
+    """Short, so the Tip column keeps its room: "today", "Thu" this week, "Nov 2" further out."""
     gap = (day - now.date()).days
-    return {0: "today", 1: "tomorrow", -1: "yesterday"}.get(gap, f"{day:%a %b} {day.day}")
+    if gap in (0, 1, -1):
+        return {0: "today", 1: "tomorrow", -1: "yesterday"}[gap]
+    return f"{day:%a}" if 0 < gap < 7 else f"{day:%b} {day.day}"
 
 
 def due_label(due: datetime | None, now: datetime, submitted: bool = False) -> Text:

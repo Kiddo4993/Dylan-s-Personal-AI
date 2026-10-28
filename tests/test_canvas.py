@@ -502,3 +502,20 @@ async def test_a_failing_model_does_not_stop_the_sync(tmp_path, console, keys):
     out = console.file.getvalue()
     assert "Lab 1" in out and "Unexpected error from fake" in out
     assert CanvasStore.load(tmp_path / "canvas.json").plans == {}  # nothing half-saved: next sync plans it
+
+
+def test_due_labels_stay_short():
+    from fixel.ui import day_label, due_label
+
+    now = datetime(2026, 10, 28, 12, 0).astimezone()  # a Wednesday
+    assert [day_label((now + timedelta(days=n)).date(), now) for n in (0, 1, 2, 6, 7, -1)] == [
+        "today", "tomorrow", "Fri", "Tue", "Nov 4", "yesterday"]
+    assert due_label(now + timedelta(hours=3), now).plain == "today 3:00pm"
+    late = due_label(now - timedelta(days=1), now)
+    assert late.plain.startswith("late · yesterday") and "red" in str(late.style)
+    assert not due_label(now - timedelta(days=1), now, submitted=True).plain.startswith("late")
+
+
+def test_only_the_tick_is_green_on_handed_in_work(console):
+    UI(console).canvas_table([make(submitted=True)], {}, NOW, 14)
+    assert "✓ Lab 1" in console.file.getvalue()
