@@ -268,28 +268,29 @@ async def test_esc_closes_the_completion_menu_not_the_editor(tmp_path, pipe):
 # ---- /ide terminal
 
 
-async def test_ide_terminal_opens_the_terminal_ide(tmp_path, console):
+async def test_ide_here_opens_the_terminal_ide_in_this_window(tmp_path, console):
     from test_app_playground import FakeEditor, FakeServer, make_app
 
     app = make_app(tmp_path, console)
-    await app.handle_command("/ide terminal")
-    await app.handle_command("/ide terminal java")
+    await app.handle_command("/ide here")
+    await app.handle_command("/ide here java")
     assert [lang for lang, _ in FakeEditor.opened] == ["python", "java"]
-    assert FakeServer.instances == []  # the browser IDE stays closed
+    assert FakeServer.instances == [] and app.windows == []  # no browser, no new window
 
 
-async def test_ide_terminal_rejects_html_and_unknown_languages(tmp_path, console):
+async def test_ide_here_rejects_html_and_unknown_languages(tmp_path, console):
     from test_app_playground import FakeEditor, make_app
 
     app = make_app(tmp_path, console)
-    await app.handle_command("/ide terminal html")
-    await app.handle_command("/ide terminal rust")
+    await app.handle_command("/ide here html")
+    await app.handle_command("/ide here rust")
     out = console.file.getvalue()
-    assert "/ide" in out and "Unknown language 'rust'" in out and FakeEditor.opened == []
+    assert "/ide web html" in out and "Unknown language 'rust'" in out and FakeEditor.opened == []
 
 
-def test_help_mentions_the_terminal_ide(console):
+def test_help_mentions_every_ide(console):
     from fixel.ui import UI
 
     UI(console).help()
-    assert "/ide terminal" in console.file.getvalue()
+    out = console.file.getvalue()
+    assert "/ide [here|web]" in out and "own Terminal window" in out

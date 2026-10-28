@@ -19,10 +19,16 @@ def launch_command() -> str:
     return f"clear; FIXEL_INSIDE=1 exec {shlex.quote(sys.executable)} -m fixel"
 
 
-def launch_script() -> str:
-    """AppleScript that runs Fixel in Terminal.app. If Terminal isn't running yet, it opens
-    with its own startup window, so run Fixel in that window instead of adding a second one."""
-    command = applescript_string(launch_command())
+def ide_command(lang: str | None) -> str:
+    """The shell line for the IDE's own window. `exit` afterwards, so Esc can close the window too."""
+    args = " ".join(shlex.quote(a) for a in ("-m", "fixel", "ide", *([lang] if lang else [])))
+    return f"clear; {shlex.quote(sys.executable)} {args}; exit"
+
+
+def launch_script(command: str | None = None) -> str:
+    """AppleScript that runs Fixel (or `command`) in Terminal.app. If Terminal isn't running yet, it
+    opens with its own startup window, so run in that window instead of adding a second one."""
+    command = applescript_string(command or launch_command())
     return (
         'tell application "Terminal"\n'
         "  if it is running then\n"
@@ -36,8 +42,13 @@ def launch_script() -> str:
     )
 
 
-def open_in_terminal_app() -> bool:
-    return subprocess.run(["osascript", "-e", launch_script()], capture_output=True).returncode == 0
+def open_in_terminal_app(command: str | None = None) -> bool:
+    return subprocess.run(["osascript", "-e", launch_script(command)], capture_output=True).returncode == 0
+
+
+def open_ide_window(lang: str | None) -> bool:
+    """/ide: the terminal IDE in a new Terminal window, so Fixel's own window stays free."""
+    return open_in_terminal_app(ide_command(lang))
 
 
 def set_title(title: str = WINDOW_TITLE) -> None:

@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Awaitable, Callable
 
-from . import actions, permissions
+from . import actions, permissions, terminal
 from .brain import Provider, ProviderError, make_provider
 from .canvas.command import CanvasCommand
 from .capture import capture_region
@@ -31,6 +31,7 @@ from .playground.runner import RunResult
 from .playground.runner import run as run_code
 from .playground.scratch import Scratch
 from .playground.server import PlaygroundServer
+from .playground.window import remove_link, write_link
 from .prompts import build_system
 from .session import MAX_TRAY, Session
 from .ui import UI, KeyAction
@@ -51,6 +52,7 @@ class FixelApp:
         server_factory: Callable[..., PlaygroundServer] = PlaygroundServer,
         open_url: Callable[[str], None] = actions.open_url,
         canvas_factory: Callable[..., CanvasCommand] = CanvasCommand,
+        ide_window: Callable[[str | None], bool] = terminal.open_ide_window,
     ) -> None:
         self.cfg = cfg
         self.ui = ui
@@ -73,6 +75,7 @@ class FixelApp:
         self._editor_factory = editor_factory
         self._server_factory = server_factory
         self._open_url = open_url
+        self._ide_window = ide_window
         self.canvas = canvas_factory(cfg, ui, lambda: self.provider)
 
     # ---- startup
@@ -172,6 +175,7 @@ class FixelApp:
             capture_task.cancel()
             if self.web is not None:
                 self.web.stop()
+                remove_link(self.cfg.home)  # IDE windows left open now say Fixel isn't open
 
     # ---- capture
 
@@ -352,27 +356,69 @@ class FixelApp:
         else:
             self.ui.info("Back from the editor. /code reopens it.")
 
-    def open_web(self, handoff: tuple[str, str] | None = None) -> None:
+    def _ensure_server(self) -> PlaygroundServer | None:
+        """The local playground server: the browser IDE talks to it, and so does ⌃A in an IDE window."""
         if self.web is None:
             server = self._server_factory(asyncio.get_running_loop(), self.scratch, self._run_code, self.attach_code)
             try:
                 server.start()
             except OSError as e:
                 self.ui.error(f"Couldn't start the web playground ({e}). /code still works.")
-                return
+                return None
             self.web = server
+        return self.web
+
+    def open_web(self, handoff: tuple[str, str] | None = None) -> None:
+        if self._ensure_server() is None:
+            return
         if handoff is not None:
             self.web.hand_off(*handoff)
         self._open_url(self.web.url)
         self.ui.info(f"Web playground open in your browser ({self.web.origin}).")
 
+    async def open_ide_window(self, lang: str | None) -> None:
+        """/ide: the terminal IDE in a new Terminal window. ⌃A there lands in this window's tray."""
+        server = self._ensure_server()
+        if server is not None:
+            write_link(self.cfg.home, server.origin, server.token)
+        if self._ide_window(lang):
+            self.ui.info("The IDE opened in its own Terminal window. ⌃A there sends your code back here; Esc closes it.")
+            return
+        self.ui.warn("Couldn't open a new Terminal window, so the IDE opens here instead.")
+        await self.open_editor(lang or self.scratch.last_lang())
+
+    async def _ide(self, arg: str) -> None:
+        """/ide [lang] new window · /ide here [lang] this window · /ide web [lang] browser."""
+        where, _, rest = arg.partition(" ")
+        if where.lower() == "web":
+            self._web_ide(rest.strip())
+            return
+        if where.lower() == "here":
+            await self._terminal_ide(rest.strip())
+            return
+        name = (rest if where.lower() == "terminal" else arg).strip()
+        lang = resolve(name) if name else None
+        if name and lang is None:
+            self.ui.warn(f"Unknown language '{name}'. Try: python, java, js, cpp, html.")
+        elif lang is not None and not lang.run:  # HTML needs a live preview, which only the browser has
+            self._web_ide(name)
+        else:
+            await self.open_ide_window(lang.name if lang else None)
+
+    def _web_ide(self, arg: str) -> None:
+        lang = resolve(arg) if arg else None
+        if arg and lang is None:
+            self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp, html.")
+        else:
+            self.open_web((lang.name, self.scratch.load(lang.name)) if lang else None)
+
     async def _terminal_ide(self, arg: str) -> None:
-        """/code [lang] and /ide terminal [lang]: the IDE inside the terminal."""
+        """/code [lang] and /ide here [lang]: the IDE inside this terminal."""
         lang = resolve(arg) if arg else None
         if arg and lang is None:
             self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp.")
         elif lang is not None and not lang.run:
-            self.ui.info("HTML runs in the browser IDE: /ide html (or /web)")
+            self.ui.info("HTML runs in the browser IDE: /ide web html (or /web html)")
         else:
             await self.open_editor(lang.name if lang else self.scratch.last_lang())
 
@@ -626,14 +672,10 @@ class FixelApp:
                 self.ui.show_case(record)
         elif command == "/code":
             await self._terminal_ide(arg)
-        elif command == "/ide" and arg.split(" ", 1)[0].lower() == "terminal":
-            await self._terminal_ide(arg.partition(" ")[2].strip())
-        elif command in ("/ide", "/web"):
-            lang = resolve(arg) if arg else None
-            if arg and lang is None:
-                self.ui.warn(f"Unknown language '{arg}'. Try: python, java, js, cpp, html.")
-            else:
-                self.open_web((lang.name, self.scratch.load(lang.name)) if lang else None)
+        elif command == "/ide":
+            await self._ide(arg)
+        elif command == "/web":
+            self._web_ide(arg)
         else:
             self.ui.warn(f"Unknown command {command}. Type /instruction to see every command.")
         return True

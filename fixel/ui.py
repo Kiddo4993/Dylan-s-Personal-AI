@@ -209,7 +209,7 @@ class UI:
         table.add_column(no_wrap=True, style="bold")
         table.add_column()
         for command in COMMANDS:
-            table.add_row(f"{command.name} {command.usage}".strip(), command.summary)
+            table.add_row(escape(f"{command.name} {command.usage}".strip()), escape(command.summary))  # "[language]" is text
         self.console.print(table)
         shortcuts = ", ".join(f"{shortcut_label(c.key)} {c.name}" for c in COMMANDS if c.key)
         self.console.print(Text(f"\nShortcuts, if you like keys: {shortcuts}", style="dim"))
@@ -217,7 +217,7 @@ class UI:
     def instructions(self) -> None:
         """/instruction: every command and shortcut Fixel has."""
         commands = tuple((f"{c.name} {c.usage}".strip(), c.summary) for c in COMMANDS)
-        for title, rows in (("Commands", commands), ("Shortcuts", SHORTCUTS), ("In /ide terminal", IDE_KEYS)):
+        for title, rows in (("Commands", commands), ("Shortcuts", SHORTCUTS), ("In the terminal IDE (/ide, /code)", IDE_KEYS)):
             table = Table(title=title, title_justify="left", title_style="bold", show_header=False, box=None, padding=(0, 2, 0, 0))
             table.add_column(style="cyan", no_wrap=True)
             table.add_column()

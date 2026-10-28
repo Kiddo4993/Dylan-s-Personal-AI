@@ -49,7 +49,7 @@ async def test_instruction_command_shows_every_command_and_shortcut(tmp_path, co
     out = console.file.getvalue()
     for command in COMMANDS:
         assert command.name in out
-    assert "/ide terminal" in out and "Shortcuts" in out and "⌃P" in out and "⌥⌥" in out
+    assert "In the terminal IDE" in out and "Shortcuts" in out and "⌃P" in out and "⌥⌥" in out
 
 
 async def test_unknown_command_points_to_instruction(tmp_path, console):

@@ -60,7 +60,9 @@ def format_result(result: RunResult) -> str:
 
 
 class Editor:
-    def __init__(self, scratch: Scratch, lang: str, code: str, run: RunFn, *, input=None, output=None) -> None:
+    def __init__(
+        self, scratch: Scratch, lang: str, code: str, run: RunFn, *, note: str = "", input=None, output=None
+    ) -> None:
         self.scratch = scratch
         self.lang = lang
         self.last: RunResult | None = None
@@ -75,7 +77,7 @@ class Editor:
         )
         self.stdin = TextArea(height=Dimension(preferred=3, max=6), prompt="stdin› ")
         self.output = TextArea(
-            text="F5 runs your code.", read_only=True, scrollbar=True, height=Dimension(preferred=8, max=12)
+            text=note or "F5 runs your code.", read_only=True, scrollbar=True, height=Dimension(preferred=8, max=12)
         )
         self._picked = RUNNABLE.index(lang)  # the sidebar's highlighted row while it has focus
         self.bar_mode: str | None = None  # "find" or "line" while the one-line bar under the code is open

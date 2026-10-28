@@ -29,7 +29,7 @@ class FakeServer:
 
     def __init__(self, loop, scratch, run, on_ask):
         self.on_ask, self.handoffs, self.started, self.stopped = on_ask, [], 0, False
-        self.url, self.origin = "http://127.0.0.1:9/#tok", "http://127.0.0.1:9"
+        self.url, self.origin, self.token = "http://127.0.0.1:9/#tok", "http://127.0.0.1:9", "tok"
         FakeServer.instances.append(self)
 
     def start(self):
@@ -42,17 +42,22 @@ class FakeServer:
         self.handoffs.append((lang, code))
 
 
-def make_app(tmp_path, console, replies=()):
+def make_app(tmp_path, console, replies=(), window_opens=True):
     FakeEditor.opened, FakeEditor.attach, FakeServer.instances = [], None, []
-    opened_urls = []
+    opened_urls, windows = [], []
+
+    def ide_window(lang):
+        windows.append(lang)
+        return window_opens
+
     app = FixelApp(
         Config(home=tmp_path, notes_dir=tmp_path / "notes"), UI(console),
         provider_factory=lambda alias, cfg: FakeProvider(list(replies)),
         casefile=CaseFile(tmp_path / "c.db"),
-        editor_factory=FakeEditor, server_factory=FakeServer, open_url=opened_urls.append,
+        editor_factory=FakeEditor, server_factory=FakeServer, open_url=opened_urls.append, ide_window=ide_window,
     )
     app.select_model("sonnet")
-    app.opened_urls = opened_urls
+    app.opened_urls, app.windows = opened_urls, windows
     return app
 
 
@@ -139,26 +144,42 @@ async def test_new_case_clears_attached_code(tmp_path, console):
     assert app.session.code is None and app.ui.status.code == ""
 
 
-async def test_ide_command_opens_the_browser_ide(tmp_path, console):
+async def test_ide_command_opens_the_ide_in_a_new_terminal_window(tmp_path, console):
+    from fixel.playground.window import read_link
+
     app = make_app(tmp_path, console)
     await app.handle_command("/ide")
-    (server,) = FakeServer.instances
-    assert server.started == 1 and app.opened_urls == [server.url] and server.handoffs == []
+    await app.handle_command("/ide java")
+    await app.handle_command("/ide terminal c++")
+    assert app.windows == [None, "java", "cpp"] and FakeEditor.opened == [] and app.opened_urls == []
+    (server,) = FakeServer.instances  # started once, so ⌃A in the window has somewhere to land
+    assert read_link(tmp_path) == {"ask": "http://127.0.0.1:9/api/ask", "token": "tok"}
+    assert "own Terminal window" in console.file.getvalue()
 
 
-async def test_ide_command_with_a_language_opens_that_language(tmp_path, console):
+async def test_ide_falls_back_to_this_window_when_terminal_cant_open_one(tmp_path, console):
+    app = make_app(tmp_path, console, window_opens=False)
+    await app.handle_command("/ide java")
+    assert FakeEditor.opened[0][0] == "java" and "opens here instead" in console.file.getvalue()
+
+
+async def test_ide_here_uses_this_window_and_ide_web_the_browser(tmp_path, console):
     app = make_app(tmp_path, console)
     app.scratch.save("java", "class Hello {}")
-    await app.handle_command("/ide java")
-    await app.handle_command("/ide HTML")
+    await app.handle_command("/ide here java")
+    await app.handle_command("/ide web java")
+    await app.handle_command("/ide HTML")  # HTML needs the live preview: always the browser
+    assert app.windows == [] and FakeEditor.opened[0][0] == "java"
     assert FakeServer.instances[0].handoffs[0] == ("java", "class Hello {}")
-    assert FakeServer.instances[0].handoffs[1][0] == "html"
+    assert FakeServer.instances[0].handoffs[1][0] == "html" and len(app.opened_urls) == 2
 
 
 async def test_ide_command_rejects_unknown_language(tmp_path, console):
     app = make_app(tmp_path, console)
     await app.handle_command("/ide rust")
-    assert "Unknown language 'rust'" in console.file.getvalue() and FakeServer.instances == []
+    await app.handle_command("/ide web rust")
+    out = console.file.getvalue()
+    assert out.count("Unknown language 'rust'") == 2 and FakeServer.instances == [] and app.windows == []
 
 
 async def test_failed_ask_says_the_code_is_still_in_the_tray(tmp_path, console):

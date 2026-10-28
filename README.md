@@ -63,7 +63,7 @@ fixel --here    # runs in the current terminal instead
 | `/cases <words>` · `/open [n]` | search past cases · show one |
 | `/play` | open the answer's code in the playground |
 | `/canvas` · `/canvas setup` · `/canvas notion` | your Canvas assignments with AI priority, hours, start-by and a tip · connect Canvas · add a Notion database (see Canvas) |
-| `/ide [language]` · `/code [python\|java\|js\|cpp]` | browser IDE · terminal editor (see Playground) |
+| `/ide [language]` · `/ide web` · `/code` | the IDE in its own Terminal window · in the browser · in this window (see Playground) |
 | `/new` · `/model sonnet\|opus\|gemini\|gpt` · `/api [provider] [key]` · `/help` · `/exit` | new case · switch model · set an API key · help · close Fixel |
 | Ctrl+C | stop an answer that's streaming |
 
@@ -72,8 +72,15 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 
 ## Playground
 
-- `/ide terminal [python|java|js|cpp]` (or `/code`) opens the IDE inside the terminal: a file sidebar (**F4**), line/column and a modified marker in the status bar, **⌃Space** completion, auto-indent (**Shift+Tab** dedents), **⌃F** find, **⌃G** go to line, **F5** run · **F3** input (stdin) · **F2** next language · **⌃A** ask Fixel about the code and its output · **Esc** back.
-- `/ide [language]` opens the IDE in your browser (the VS Code editor): live HTML preview, a Run button for the same four languages, and **Ask Fixel**. `/web` does the same.
+- **`/ide [python|java|js|cpp]`** opens the terminal IDE in **its own Terminal window**, so Fixel stays free in yours. Press **⌃A** there and your code and its output land in Fixel's tray, and Fixel's window comes to the front so you can ask. The IDE stays open with your code; **Esc** closes the window. Outside Terminal.app (or without permission to control it), it opens in Fixel's window instead.
+- **`/ide here [language]`** (or `/code`) opens the same IDE inside Fixel's own window.
+- **The terminal IDE has:**
+  - a file sidebar (**F4**), and line/column plus a modified marker in the status bar
+  - **⌃Space** completion and auto-indent (**Shift+Tab** dedents)
+  - **⌃F** find and **⌃G** go to line
+  - **F5** run, **F3** input (stdin), **F2** next language
+  - **⌃A** to ask Fixel about the code and its output
+- **`/ide web [language]`** (or `/web`) opens the IDE in your browser, using the VS Code editor: live HTML preview, a Run button for the same four languages, and **Ask Fixel**. `/ide html` always goes here, since only the browser can preview HTML.
 - **`/play`** (Ctrl+P) opens an answer's code: HTML in the browser, everything else in `/code`. Nothing runs until you press Run.
 - Code runs on your Mac with your permissions (it's a scratchpad, not a sandbox). Runs stop after `playground_timeout` seconds (default 10). Your scratch code lives in `~/.fixel/playground/`.
 
