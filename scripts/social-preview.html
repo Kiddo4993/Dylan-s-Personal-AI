@@ -1,0 +1,48 @@
+<!doctype html>
+<!-- GitHub's social preview card (Settings → Social preview). Regenerate the PNG with:
+     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars \
+       --window-size=1280,640 --screenshot=docs/images/social-preview.png scripts/social-preview.html -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background: radial-gradient(1200px 500px at 85% -10%, #2a2350 0%, transparent 60%),
+                radial-gradient(900px 400px at -10% 110%, #12304d 0%, transparent 60%), #0b0b10;
+    color: #f2f2f5; font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px;
+  }
+  .top { display: flex; align-items: center; gap: 28px; }
+  .corners { position: relative; width: 92px; height: 92px; }
+  .corners i { position: absolute; width: 22px; height: 22px; border: 0 solid #a99bff; }
+  .corners i:nth-child(1) { top: 0; left: 0; border-top-width: 5px; border-left-width: 5px; }
+  .corners i:nth-child(2) { top: 0; right: 0; border-top-width: 5px; border-right-width: 5px; }
+  .corners i:nth-child(3) { bottom: 0; left: 0; border-bottom-width: 5px; border-left-width: 5px; }
+  .corners i:nth-child(4) { bottom: 0; right: 0; border-bottom-width: 5px; border-right-width: 5px; }
+  .corners b { position: absolute; top: 34px; width: 12px; height: 12px; border-radius: 50%; background: #a99bff; }
+  .corners b:nth-of-type(1) { left: 26px; } .corners b:nth-of-type(2) { right: 26px; }
+  h1 {
+    margin: 0; font-size: 104px; line-height: 1; letter-spacing: -3px; font-weight: 800;
+    background: linear-gradient(90deg, #5aa9ff, #a99bff); -webkit-background-clip: text; color: transparent;
+  }
+  .pitch { font-size: 34px; font-weight: 600; margin: 0; }
+  .pitch span { color: #a99bff; }
+  .chips { display: flex; gap: 12px; }
+  .chips span {
+    font-size: 19px; padding: 7px 16px; border-radius: 999px; color: #c9c6dd;
+    background: rgba(169, 155, 255, .1); border: 1px solid rgba(169, 155, 255, .28);
+  }
+  .shot { width: 900px; border-radius: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, .55); }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="corners"><i></i><i></i><i></i><i></i><b></b><b></b></div>
+    <h1>Fixel</h1>
+  </div>
+  <p class="pitch">Screenshot anything you're stuck on. <span>Get unstuck.</span></p>
+  <div class="chips"><span>⌥⌥ to capture</span><span>Claude · Gemini · GPT</span><span>built-in IDE</span><span>Canvas → Notion</span><span>macOS</span></div>
+  <img class="shot" src="../docs/images/home.svg" alt="">
+</body>
+</html>
