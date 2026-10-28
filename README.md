@@ -1,8 +1,32 @@
-# Fixel: Dylan's Personal AI
+<div align="center">
 
-Double-tap **Right Option ⌥**, drag over anything on screen, and Fixel answers in its own Terminal window.
+# Fixel
 
-Fixel recognizes what you captured and answers in the format that fits:
+**Screenshot anything you're stuck on. Get unstuck.**
+
+Double-tap **Right Option ⌥**, drag over an error, a math problem, an email or a webpage,<br>
+and an AI answers in your terminal: the fix, the steps, the draft, or the code.
+
+[![Tests](https://github.com/Kiddo4993/Dylan-s-Personal-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/Kiddo4993/Dylan-s-Personal-AI/actions/workflows/tests.yml)
+![macOS](https://img.shields.io/badge/macOS-only-black?logo=apple)
+![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
+![Models](https://img.shields.io/badge/Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT-your%20own%20key-A99BFF)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
+<img src="docs/images/home.svg" alt="Fixel's home screen: Pix the mascot, readiness checks, memory stats and recent cases" width="760">
+
+</div>
+
+## Why Fixel
+
+- **No copy-paste.** Screenshot the problem; Fixel reads it, works out what kind of problem it is, and answers in the right format.
+- **It remembers.** Fixel finds problems you've solved before and reuses the fix that worked. `/worked` teaches it which fixes to trust.
+- **Bring your own key.** Claude, Gemini or GPT, with keys kept in the macOS Keychain. No account, no server, no subscription.
+- **Built for students and builders.** It has learn mode (hints, not answers), a built-in IDE for Python, Java, JS and C++, and Canvas homework planning that syncs to Notion.
+
+<div align="center"><img src="docs/images/answer.svg" alt="Fixel explaining a ModuleNotFoundError and giving the pip command that fixes it" width="760"></div>
+
+## What it answers
 
 | You screenshot… | You get… |
 |---|---|
@@ -23,7 +47,10 @@ Fixel recognizes what you captured and answers in the format that fits:
 
 ## Install
 
+You need macOS and Python 3.11 or newer (`brew install python@3.12`).
+
 ```bash
+git clone https://github.com/Kiddo4993/Dylan-s-Personal-AI.git fixel && cd fixel
 /opt/homebrew/bin/python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 ln -sf "$PWD/.venv/bin/fixel" /opt/homebrew/bin/fixel   # makes `fixel` work everywhere
@@ -86,6 +113,8 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 
 ## Canvas
 
+<div align="center"><img src="docs/images/canvas.svg" alt="/canvas listing assignments with AI priority, hours, start-by dates and tips" width="760"></div>
+
 `/canvas` lists what's due in the next `canvas_days` days (default 14), soonest first. Your current AI model adds a **priority**, an **hours** estimate, a **start-by** date and one **tip** to each new assignment, and it can keep a Notion database in sync. It runs on your own tokens: nothing goes through anyone else's server.
 
 1. **`/canvas setup`** asks for one of these:
@@ -112,8 +141,11 @@ Screenshots go only to the model provider you've selected (Anthropic, Google, or
 ## Develop
 
 ```bash
-.venv/bin/pytest -q
+.venv/bin/pytest -q                     # the full suite; no network, no API keys needed
+.venv/bin/python scripts/screenshots.py # redraw the README's screenshots from Fixel's real rendering code
 ```
+
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the house rules (one command registry, fakes instead of the network, plain-English messages). If Fixel helps you, a ⭐ helps other people find it.
 
 ## License
 

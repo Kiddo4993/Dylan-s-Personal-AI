@@ -1,0 +1,12 @@
+name: Feature idea
+description: Something Fixel could do
+labels: [enhancement]
+body:
+  - type: textarea
+    attributes:
+      label: What would you screenshot, or type, and what should Fixel do?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Why it matters to you

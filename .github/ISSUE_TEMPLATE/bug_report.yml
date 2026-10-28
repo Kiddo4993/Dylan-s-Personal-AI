@@ -1,0 +1,23 @@
+name: Bug report
+description: Something in Fixel didn't work the way it should
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what Fixel did instead.
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: Fixel command or key
+      placeholder: "/canvas, ⌥⌥, /ide java…"
+  - type: input
+    attributes:
+      label: macOS and Python version
+      placeholder: "macOS 26.1, Python 3.12.7"
+  - type: textarea
+    attributes:
+      label: Output
+      description: Paste any error text. **Remove API keys, tokens and calendar-feed links first.**
+      render: text
