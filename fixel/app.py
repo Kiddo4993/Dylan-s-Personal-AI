@@ -13,6 +13,7 @@ from typing import Awaitable, Callable
 
 from . import actions, permissions
 from .brain import Provider, ProviderError, make_provider
+from .canvas.command import CanvasCommand
 from .capture import capture_region
 from .casefile import CaseFile, CaseRecord
 from .commands import BY_NAME
@@ -49,6 +50,7 @@ class FixelApp:
         editor_factory: Callable[..., Editor] = Editor,
         server_factory: Callable[..., PlaygroundServer] = PlaygroundServer,
         open_url: Callable[[str], None] = actions.open_url,
+        canvas_factory: Callable[..., CanvasCommand] = CanvasCommand,
     ) -> None:
         self.cfg = cfg
         self.ui = ui
@@ -71,6 +73,7 @@ class FixelApp:
         self._editor_factory = editor_factory
         self._server_factory = server_factory
         self._open_url = open_url
+        self.canvas = canvas_factory(cfg, ui, lambda: self.provider)
 
     # ---- startup
 
@@ -559,8 +562,14 @@ class FixelApp:
             self.ui.help()
         elif command == "/instruction":
             self.ui.instructions()
+        elif command == "/api" and arg.lower() in ("canvas", "notion"):  # their tokens live with /canvas
+            await self.canvas.run("setup" if arg.lower() == "canvas" else "notion")
         elif command == "/api":
             await self.handle_api(arg)
+        elif command == "/canvas":
+            finished, _ = await self._interruptible(self.canvas.run(arg))
+            if not finished:
+                self.ui.warn("Stopped. Anything already synced is kept.")
         elif command == "/model":
             if not arg:
                 current = self.provider.name if self.provider else "none"

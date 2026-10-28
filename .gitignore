@@ -19,6 +19,7 @@ casefile.db
 *.db
 *.sqlite
 about-me.md
+canvas.json
 Fixel Notes/
 
 # --- Python ---------------------------------------------------------------
@@ -45,6 +46,7 @@ htmlcov/
 # --- AI coding-tool scratch -------------------------------------------------
 .superpowers/
 .claude/settings.local.json
+.claude/worktrees/
 
 # --- Stray files ------------------------------------------------------------
 /.md

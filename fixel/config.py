@@ -8,9 +8,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import keyring
+import keyring.errors
 
 KEYRING_SERVICE = "fixel"
-ENV_VARS = {"anthropic": "ANTHROPIC_API_KEY", "gemini": "GEMINI_API_KEY", "openai": "OPENAI_API_KEY"}
+ENV_VARS = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "canvas": "CANVAS_TOKEN",  # a Canvas access token, or the calendar-feed link (it has a secret in it too)
+    "notion": "NOTION_TOKEN",
+}
 
 DEFAULT_CONFIG_TOML = """\
 # Fixel settings. Delete a line to fall back to its default.
@@ -25,6 +32,7 @@ animations = true               # Pix's thinking face and the startup moment
 gemini_fallbacks = ["gemini-3.5-flash", "gemini-3.5-flash-lite"]   # tried in order when Gemini is busy
 slow_model_seconds = 20         # no words after this long? try the next Gemini model (/deeper allows 3x)
 playground_timeout = 10         # seconds a /code or /ide run may take before Fixel stops it
+canvas_days = 14                # /canvas looks this many days ahead
 
 [models]
 sonnet = "claude-sonnet-5-5"
@@ -52,6 +60,7 @@ class Config:
     gemini_fallbacks: list[str] = field(default_factory=lambda: ["gemini-3.5-flash", "gemini-3.5-flash-lite"])
     slow_model_seconds: float = 20.0
     playground_timeout: float = 10.0
+    canvas_days: int = 14
     models: dict[str, str] = field(default_factory=_default_models)
 
     @property
@@ -74,6 +83,10 @@ class Config:
     def playground_dir(self) -> Path:
         return self.home / "playground"
 
+    @property
+    def canvas_path(self) -> Path:
+        return self.home / "canvas.json"
+
 
 def fixel_home() -> Path:
     return Path(os.environ.get("FIXEL_HOME", Path.home() / ".fixel")).expanduser()
@@ -83,7 +96,7 @@ def load_config(home: Path | None = None) -> Config:
     cfg = Config(home=home or fixel_home())
     if cfg.config_path.exists():
         data = tomllib.loads(cfg.config_path.read_text())
-        for name in ("name", "default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "animations", "gemini_fallbacks", "slow_model_seconds", "playground_timeout"):
+        for name in ("name", "default_model", "recall_threshold", "double_tap_window", "thinking", "max_tokens", "animations", "gemini_fallbacks", "slow_model_seconds", "playground_timeout", "canvas_days"):
             if name in data:
                 setattr(cfg, name, data[name])
         if "notes_dir" in data:
@@ -136,3 +149,12 @@ def get_api_key(vendor: str) -> str | None:
 
 def set_api_key(vendor: str, key: str) -> None:
     keyring.set_password(KEYRING_SERVICE, vendor, key)
+
+
+def delete_api_key(vendor: str) -> bool:
+    """Remove a saved key. Returns False if there wasn't one."""
+    try:
+        keyring.delete_password(KEYRING_SERVICE, vendor)
+    except keyring.errors.PasswordDeleteError:
+        return False
+    return True

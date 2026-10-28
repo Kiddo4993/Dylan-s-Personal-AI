@@ -34,6 +34,7 @@ COMMANDS = (
     Command("/play", "open the answer's code: HTML in the browser IDE, the rest in /code", action="play", key="c-p"),
     Command("/ide", "the IDE in your browser: live HTML preview, Run, Ask Fixel (/web works too)", usage="[terminal] [language]"),
     Command("/code", "the IDE in the terminal (same as /ide terminal)", usage="[python|java|js|cpp]"),
+    Command("/canvas", "your Canvas assignments with AI priority, hours, start-by and a tip (syncs to Notion)", usage="[setup|notion|forget]"),
     Command("/model", "switch AI model", usage="sonnet|opus|gemini|gpt"),
     Command("/api", "add or change a provider's API key", usage="[provider] [key]"),
     Command("/help", "show every command"),

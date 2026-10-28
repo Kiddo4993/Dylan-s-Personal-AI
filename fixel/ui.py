@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import AsyncIterator
 
 from prompt_toolkit import PromptSession
@@ -33,6 +34,7 @@ BADGES = {
     "web": "bold black on green",
     "general": "bold black on white",
 }
+PRIORITY_STYLES = {"High": "bold red", "Medium": "yellow", "Low": "dim"}
 ACTION_KEYS = tuple((command.key, command.action) for command in COMMANDS if command.key)
 HELP_INTRO = """\
 **Screenshot:** double-tap **Right Option ⌥**, then drag over anything. Shots wait in the tray; \
@@ -288,3 +290,46 @@ class UI:
         for r in records:
             self.console.print(f"[bold]#{r.id}[/] {r.created_at:%Y-%m-%d} [dim]{r.mode}[/] {escape(r.key or r.question[:70])}")
         self.console.print("[dim]Open one with /open <number>[/]")
+
+    def canvas_table(self, assignments, plans, now: datetime, days: int) -> None:
+        """/canvas: what's due, soonest first, with the AI's plan beside each."""
+        if not assignments:
+            self.react(f"Nothing due in the next {days} days. Enjoy it.")
+            return
+        table = Table(box=None, header_style="bold", padding=(0, 1), expand=True)
+        table.add_column("Due", no_wrap=True)
+        table.add_column("Class", max_width=18, overflow="ellipsis", no_wrap=True)
+        table.add_column("Assignment", ratio=2)
+        table.add_column("Priority", no_wrap=True)
+        table.add_column("Hrs", justify="right", no_wrap=True)
+        table.add_column("Start", no_wrap=True)
+        table.add_column("Tip", ratio=3, style="dim")
+        for a in assignments:
+            plan = plans.get(a.uid)
+            title = Text("✓ ", style="green") + Text(a.title) if a.submitted else Text(a.title)
+            table.add_row(
+                due_label(a.due, now, a.submitted),
+                Text(a.course),  # Text, not markup: a course named "[Period 3]" stays literal
+                title,
+                Text(plan.priority, style=PRIORITY_STYLES.get(plan.priority, "")) if plan else Text("—", style="dim"),
+                f"{plan.hours:g}" if plan else "",
+                Text(day_label(plan.start_by, now)) if plan and plan.start_by else Text(""),
+                Text(plan.tip) if plan else Text(""),
+            )
+        self.console.print(table)
+
+
+def day_label(day, now: datetime) -> str:
+    gap = (day - now.date()).days
+    return {0: "today", 1: "tomorrow", -1: "yesterday"}.get(gap, f"{day:%a %b} {day.day}")
+
+
+def due_label(due: datetime | None, now: datetime, submitted: bool = False) -> Text:
+    if due is None:
+        return Text("no date", style="dim")
+    local = due.astimezone(now.tzinfo)
+    hour = f"{local:%I:%M%p}".lstrip("0").lower()
+    label = f"{day_label(local.date(), now)} {hour}"
+    if local < now and not submitted:
+        return Text(f"late · {label}", style="bold red")
+    return Text(label, style="bold" if (local - now).total_seconds() < 86400 else "")

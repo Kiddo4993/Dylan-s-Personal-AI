@@ -62,6 +62,7 @@ fixel --here    # runs in the current terminal instead
 | `/remember <fact>` · `/memory` · `/forget <n>` | teach Fixel about you · list · remove |
 | `/cases <words>` · `/open [n]` | search past cases · show one |
 | `/play` | open the answer's code in the playground |
+| `/canvas` · `/canvas setup` · `/canvas notion` | your Canvas assignments with AI priority, hours, start-by and a tip · connect Canvas · add a Notion database (see Canvas) |
 | `/ide [language]` · `/code [python\|java\|js\|cpp]` | browser IDE · terminal editor (see Playground) |
 | `/new` · `/model sonnet\|opus\|gemini\|gpt` · `/api [provider] [key]` · `/help` · `/exit` | new case · switch model · set an API key · help · close Fixel |
 | Ctrl+C | stop an answer that's streaming |
@@ -76,6 +77,22 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 - **`/play`** (Ctrl+P) opens an answer's code: HTML in the browser, everything else in `/code`. Nothing runs until you press Run.
 - Code runs on your Mac with your permissions (it's a scratchpad, not a sandbox). Runs stop after `playground_timeout` seconds (default 10). Your scratch code lives in `~/.fixel/playground/`.
 
+## Canvas
+
+`/canvas` lists what's due in the next `canvas_days` days (default 14), soonest first. Your current AI model adds a **priority**, an **hours** estimate, a **start-by** date and one **tip** to each new assignment, and it can keep a Notion database in sync. It runs on your own tokens: nothing goes through anyone else's server.
+
+1. **`/canvas setup`** asks for one of these:
+   - **An access token (best).** In Canvas: Account → Settings → **+ New Access Token**. You'll also type your school's Canvas address, e.g. `myschool.instructure.com`.
+   - **Your calendar feed (fallback).** If your school hides the token button: Calendar → **Calendar Feed**, then copy the link. The feed can't tell Fixel what you've handed in.
+2. **`/canvas notion`** (optional): make an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations) and copy its secret. Then in Notion, open the page that should hold the database, choose ••• → Connections and add your integration, and paste the page's link. Fixel creates a **Canvas** database there.
+3. **`/canvas`** syncs. Re-syncing is safe:
+   - Canvas facts (title, due date, link, points, submitted) follow Canvas.
+   - The AI fields are written once, so your edits stick.
+   - **Status** is set when a row is created and never touched again.
+   - A row you delete stays deleted.
+
+`/canvas forget` removes both tokens from the Keychain. `/api canvas` and `/api notion` also open the setup steps. Tokens and the feed link are secrets: they live only in the macOS Keychain (or the `CANVAS_TOKEN` and `NOTION_TOKEN` environment variables), never in a file. `~/.fixel/canvas.json` keeps only your school's address, the database id, and the AI plans.
+
 ## Customize
 
 - `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy or slow (`gemini_fallbacks`, `slow_model_seconds`), the double-tap speed, the notes folder, and how closely a past problem must match before Fixel reuses it (`recall_threshold`).
@@ -83,7 +100,7 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 
 ## Privacy & cost
 
-Screenshots go only to the model provider you've selected (Anthropic, Google, or OpenAI). The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
+Screenshots go only to the model provider you've selected (Anthropic, Google, or OpenAI). `/canvas` sends that same provider your assignment titles, classes, due dates and points (never your token), and sends Notion only the rows it writes. The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
 
 ## Develop
 
