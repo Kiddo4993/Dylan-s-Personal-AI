@@ -52,7 +52,7 @@ def home(ui: UI, console: Console) -> None:
 
 
 def answer(ui: UI, console: Console) -> None:
-    console.print("[cyan]›[/] [dim]📸 1 shot · ⏎[/]")
+    console.print("[cyan]›[/] why won't this run?")
     header, body = split_header(ANSWER, final=True)
     console.print(ui.answer_view(header, body))
     ui.answer_footer("claude-sonnet-5-5", "claude-sonnet-5-5", 3.2, False)

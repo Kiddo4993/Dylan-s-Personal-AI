@@ -10,29 +10,10 @@ from __future__ import annotations
 HAPPY = "⌜^‿^⌝"
 SAD = "⌜•⁀•⌝"
 
-SHOT_VERBS = (
-    "Squinting at your screenshot",
-    "Zooming in",
-    "Reading the fine print",
-    "Following the trail",
-    "Lining things up",
-    "Connecting the dots",
-)
-TEXT_VERBS = (
-    "Thinking it through",
-    "Connecting the dots",
-    "Untangling",
-    "Working it out",
-    "Checking the details",
-)
-DEEP_VERBS = (
-    "Thinking really hard",
-    "Double-checking",
-    "Going deeper",
-    "Weighing every angle",
-    "Checking the work",
-)
-VERB_SECONDS = 3.0
+# What Fixel is actually doing, said once. Rotating cute verbs ("Connecting the dots…") say nothing.
+SHOT_VERB = "Reading your screenshot"
+TEXT_VERB = "Thinking"
+DEEP_VERB = "Thinking hard"
 
 # One 4-second loop: rest, blink, rest, zoom out and glance around, zoom back in.
 _SNUG, _BLINK = " ⌜•‿•⌝ ", " ⌜-‿-⌝ "
@@ -59,9 +40,8 @@ def mini_frame(t: float) -> str:
     return _SNUG
 
 
-def verb(t: float, *, images: bool, deep: bool) -> str:
-    verbs = DEEP_VERBS if deep else SHOT_VERBS if images else TEXT_VERBS
-    return verbs[int(t // VERB_SECONDS) % len(verbs)]
+def verb(*, images: bool, deep: bool) -> str:
+    return DEEP_VERB if deep else SHOT_VERB if images else TEXT_VERB
 
 
 def big_face(*, spread: int = 0, eyes: str = "●") -> list[str]:

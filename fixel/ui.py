@@ -22,7 +22,7 @@ from rich.text import Text
 
 from . import pix
 from .commands import COMMANDS, SlashCompleter, shortcut_label
-from .home import PIX_COLOR, HomeInfo, render_home
+from .home import PIX_STYLE, HomeInfo, render_home
 from .parse import Header, split_header
 
 BADGES = {
@@ -91,14 +91,13 @@ def toolbar_text(status: Status) -> str:
     if status.tray or status.code:
         parts = []
         if status.tray:
-            plural = "" if status.tray == 1 else "s"
-            parts.append(f"📸 {status.tray} shot{plural} in tray")
+            parts.append(f"{status.tray} shot{'' if status.tray == 1 else 's'}")
         if status.code:
-            parts.append(f"📝 {status.code} code in tray")
-        follow = "adding to this case (/follow to undo)" if status.follow_up else "/follow to add to this case"
-        return " · ".join(parts) + f" · ⏎ ask · ⌥⌥ add more · {follow}"
-    hotkey = "⌥⌥ screenshot" if status.hotkey_ok else "⚠ hotkey off (run fixel setup)"
-    return f"{hotkey} · / for commands · /deeper · /copy · /run · /new"
+            parts.append(f"{status.code} code")
+        follow = "/follow  new case instead" if status.follow_up else "/follow  add to this case"
+        return f"In the tray: {' and '.join(parts)}.   Enter  ask   ⌥⌥  add another   {follow}"
+    hotkey = "⌥⌥  screenshot" if status.hotkey_ok else "Hotkey off: run fixel setup"
+    return f"{hotkey}   /  for commands   /deeper   /copy   /run   /new"  # key, then what it does, like nano's hints
 
 
 class Thinking:
@@ -114,9 +113,9 @@ class Thinking:
         seconds = time.monotonic() - self.started
         moment = seconds if self.animated else 0.0  # animations off: Pix holds still, verb stays put
         line = Text()
-        line.append(pix.mini_frame(moment), style=f"bold {PIX_COLOR}")  # colour on Pix only
-        line.append(f" {pix.verb(moment, images=self.images, deep=self.deep)}… ")
-        line.append(f"{seconds:.0f}s · Ctrl+C to stop", style="dim")
+        line.append(pix.mini_frame(moment), style=PIX_STYLE)
+        line.append(f" {pix.verb(images=self.images, deep=self.deep)}… ")
+        line.append(f"{seconds:.0f}s, Ctrl+C stops", style="dim")
         yield line
 
 
@@ -194,14 +193,14 @@ class UI:
         self.console.print(f"[cyan]›[/] {escape(msg)}")
 
     def warn(self, msg: str) -> None:
-        self.console.print(f"[yellow]⚠ {escape(msg)}[/]")
+        self.console.print(f"[yellow]! {escape(msg)}[/]")
 
     def error(self, msg: str) -> None:
         self.console.print(f"[bold red]{pix.SAD} {escape(msg)}[/]")
 
     def react(self, msg: str) -> None:
         """A happy Pix for good news, like a fix that worked."""
-        self.console.print(f"[bold {PIX_COLOR}]{pix.HAPPY}[/] {escape(msg)}")
+        self.console.print(f"[bold green]{pix.HAPPY}[/] {escape(msg)}")
 
     def help(self) -> None:
         self.console.print(Markdown(HELP_INTRO))
@@ -254,22 +253,22 @@ class UI:
     def memory_line(self, records, notes: int) -> None:
         """Show which past cases Fixel is handing the model before it answers."""
         for record in records:
-            proven = " ✅" if record.worked else ""
+            proven = ", the fix worked" if record.worked else ""
             self.console.print(
-                f"[magenta]🧠 Using your past case from {record.created_at:%b %d}{proven}: {escape(record.key or record.question)}[/]"
+                f"[magenta]Using your past case from {record.created_at:%b %d}{proven}: {escape(record.key or record.question)}[/]"
             )
-        about = f" · plus {notes} note{'' if notes == 1 else 's'} about you" if notes else ""
-        self.console.print(f"[dim]   /open shows it{about}[/]")
+        about = f", plus {notes} note{'' if notes == 1 else 's'} about you" if notes else ""
+        self.console.print(f"[dim]/open shows it{about}.[/]")
 
     def answer_footer(self, model: str, configured: str, seconds: float, deep: bool) -> None:
         if model != configured:
-            self.console.print(f"[yellow]⚡ {escape(configured)} was busy, answered by {escape(model)}[/]")
-        detail = " · deep thinking" if deep else ""
-        self.console.print(f"[dim]{escape(model)} · {seconds:.1f}s{detail}[/]")
+            self.console.print(f"[yellow]{escape(configured)} was busy, so {escape(model)} answered.[/]")
+        detail = ", deep thinking" if deep else ""
+        self.console.print(f"[dim]{escape(model)}, {seconds:.1f}s{detail}[/]")
 
     def action_bar(self) -> None:
         self.console.print(Text("─" * min(self.console.width, 72), style="dim"))
-        self.console.print("[dim]/deeper think harder · /worked it worked · /copy · /run · /save · /new[/]")
+        self.console.print("[bold]/deeper[/] [dim]think harder[/]   [bold]/worked[/] [dim]it worked[/]   [bold]/copy[/]   [bold]/run[/]   [bold]/save[/]   [bold]/new[/]")
 
     def playground_hint(self, where: str) -> None:
         self.console.print(f"[dim]/play opens this code in the {where}[/]")
@@ -283,7 +282,7 @@ class UI:
         self.console.print(Panel(Text(out.rstrip() or "(no output)"), title=title, border_style=style))
 
     def show_case(self, record) -> None:
-        title = f"#{record.id} · {record.created_at:%Y-%m-%d} · {record.mode} · {record.key or record.question}"
+        title = f"#{record.id}  {record.created_at:%Y-%m-%d}  {record.mode}: {record.key or record.question}"
         self.console.print(Panel(Markdown(record.answer), title=title, border_style="magenta"))
 
     def show_cases(self, records) -> None:

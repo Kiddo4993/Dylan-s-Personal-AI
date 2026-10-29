@@ -19,17 +19,10 @@ def test_pix_blinks_zooms_and_glances():
     assert pix.mini_frame(0) == " ⌜•‿•⌝ "
 
 
-def test_verbs_fit_the_question():
-    assert pix.verb(0, images=True, deep=False) == "Squinting at your screenshot"
-    assert pix.verb(0, images=False, deep=False) != pix.verb(0, images=True, deep=False)
-    text_only = {pix.verb(t, images=False, deep=False) for t in times(60, 1)}
-    assert not any("screenshot" in v for v in text_only)
-    assert pix.verb(0, images=True, deep=True) in pix.DEEP_VERBS
-
-
-def test_verbs_change_every_few_seconds():
-    assert pix.verb(0.5, images=True, deep=False) == pix.verb(2.5, images=True, deep=False)
-    assert pix.verb(3.1, images=True, deep=False) != pix.verb(0, images=True, deep=False)
+def test_the_status_says_what_fixel_is_doing():
+    assert pix.verb(images=True, deep=False) == "Reading your screenshot"
+    assert pix.verb(images=False, deep=False) == "Thinking"
+    assert pix.verb(images=True, deep=True) == pix.verb(images=False, deep=True) == "Thinking hard"
 
 
 def test_big_face_rows_line_up():

@@ -88,7 +88,7 @@ async def test_past_fix_is_sent_to_the_model_for_a_repeat_problem(tmp_path, cons
     assert sent.startswith("[Fixel memory") and "pip install numpy" in sent and sent.endswith("Figure this out.")
     assert app.session.case.question == "Figure this out."
     assert app.last_recall.id == first_id
-    assert "🧠" in console.file.getvalue()
+    assert "Using your past case" in console.file.getvalue()
 
 
 async def test_follow_ups_do_not_repeat_memory(tmp_path, console):
@@ -278,7 +278,7 @@ async def test_think_harder_needs_a_question_first(tmp_path, console):
 async def test_footer_reports_busy_fallback(tmp_path, console):
     app = make_app(tmp_path, console, FakeProvider([ERR], answered_by="backup-model"))
     await app.ask("why?")
-    assert "fake was busy, answered by backup-model" in console.file.getvalue()
+    assert "fake was busy, so backup-model answered" in console.file.getvalue()
 
 
 async def test_startup_draws_the_homepage_with_memory(tmp_path, console, monkeypatch):

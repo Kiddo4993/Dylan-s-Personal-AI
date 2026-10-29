@@ -14,13 +14,12 @@ from rich.text import Text
 from . import pix
 from .casefile import CaseRecord
 
-# The one bold element: a pixel wordmark inside screenshot-selection corners,
-# shaded like a selection highlight. Everything else stays quiet.
+# The one bold element: Pix and a pixel wordmark, drawn with screenshot-selection corners.
+# Only the terminal's own 16 colours are used, so Fixel takes on your theme like any other CLI tool.
 WORDMARK_ROWS = ("█▀▀ █ ▀▄▀ █▀▀ █  ", "█▀  █ ▄▀▄ ██▄ █▄▄")
-GRADIENT = ((0x5A, 0xA9, 0xFF), (0x8B, 0x7C, 0xFF))  # sky blue → violet
-OK, PROBLEM, QUIET = "#5FD38D", "#F2B84B", "grey62"
-PIX_COLOR = "#A99BFF"  # Pix, the mascot: soft violet, the far end of the wordmark's gradient
-MODE_COLORS = {"error": "#FF6B6B", "math": "#4FD1C5", "doc": "#F2B84B", "writing": "#E07ACF", "ui": "#5AA9FF", "web": "#7BD88F", "general": "grey70"}
+OK, PROBLEM, QUIET = "green", "yellow", "bright_black"
+PIX_STYLE = "bold"  # Pix, the mascot: your terminal's own text colour
+MODE_COLORS = {"error": "red", "math": "cyan", "doc": "yellow", "writing": "magenta", "ui": "blue", "web": "green", "general": "default"}
 LEFT_WIDTH = 26
 NARROW = 80  # below this many columns, stack instead of side-by-side
 MAX_WIDTH = 100  # a card, not a full-width banner, in wide windows
@@ -70,16 +69,7 @@ def mac_first_name() -> str | None:
 
 
 def wordmark() -> list[Text]:
-    rows = []
-    for row in WORDMARK_ROWS:
-        text = Text()
-        last = max(len(row) - 1, 1)
-        for column, char in enumerate(row):
-            mix = column / last
-            r, g, b = (round(a + (z - a) * mix) for a, z in zip(*GRADIENT))
-            text.append(char, style=f"bold #{r:02x}{g:02x}{b:02x}")
-        rows.append(text)
-    return rows
+    return [Text(row, style="bold") for row in WORDMARK_ROWS]
 
 
 def _left(info: HomeInfo, face: list[str] | None = None) -> RenderableType:
@@ -87,7 +77,7 @@ def _left(info: HomeInfo, face: list[str] | None = None) -> RenderableType:
         f"Welcome to Fixel, {info.name}" if info.name else "Welcome to Fixel"
     )
     return Group(
-        *(Text(row, style=f"bold {PIX_COLOR}") for row in face or pix.big_face()),
+        *(Text(row, style=PIX_STYLE) for row in face or pix.big_face()),
         Text(""),
         *wordmark(),
         Text(""),

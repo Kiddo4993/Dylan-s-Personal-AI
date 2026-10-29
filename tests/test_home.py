@@ -32,11 +32,16 @@ def info(**overrides):
     return HomeInfo(**base)
 
 
-def test_wordmark_is_two_pixel_rows_shaded_left_to_right():
+def test_wordmark_is_two_pixel_rows_in_the_terminals_own_colour():
     rows = wordmark()
     assert len(rows) == 2 and all("█" in row.plain for row in rows)
-    styles = [span.style for span in rows[0].spans]
-    assert styles[0] != styles[-1]  # gradient, not one flat color
+    assert all(str(row.style) == "bold" for row in rows)  # no truecolor gradient: it follows your theme
+
+
+def test_home_uses_only_the_terminals_16_colours():
+    from fixel.home import MODE_COLORS, OK, PROBLEM, QUIET
+
+    assert not any(c.startswith("#") for c in (*MODE_COLORS.values(), OK, PROBLEM, QUIET))
 
 
 def test_wide_window_puts_columns_side_by_side():

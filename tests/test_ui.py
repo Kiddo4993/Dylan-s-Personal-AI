@@ -5,10 +5,10 @@ from fixel.ui import UI, Status, toolbar_text
 
 
 def test_toolbar_idle_and_tray():
-    assert toolbar_text(Status()).startswith("⌥⌥ screenshot")
-    assert "2 shots in tray" in toolbar_text(Status(tray=2))
-    assert "adding to this case" in toolbar_text(Status(tray=1, follow_up=True))
-    assert "hotkey off" in toolbar_text(Status(hotkey_ok=False))
+    assert toolbar_text(Status()).startswith("⌥⌥  screenshot")
+    assert "In the tray: 2 shots." in toolbar_text(Status(tray=2))
+    assert "/follow  new case instead" in toolbar_text(Status(tray=1, follow_up=True))
+    assert "Hotkey off" in toolbar_text(Status(hotkey_ok=False))
 
 
 def test_toolbar_flash_expires():
@@ -62,14 +62,14 @@ def test_answer_footer_shows_model_time_and_fallback(console):
     ui = UI(console)
     ui.answer_footer("gemini-3.5-flash", "gemini-3.6-flash", 1.84, deep=True)
     out = console.file.getvalue()
-    assert "gemini-3.6-flash was busy, answered by gemini-3.5-flash" in out
-    assert "gemini-3.5-flash · 1.8s · deep thinking" in out
+    assert "gemini-3.6-flash was busy, so gemini-3.5-flash answered." in out
+    assert "gemini-3.5-flash, 1.8s, deep thinking" in out
 
 
 def test_answer_footer_without_fallback(console):
     UI(console).answer_footer("gemini-3.6-flash", "gemini-3.6-flash", 2.0, deep=False)
     out = console.file.getvalue()
-    assert "busy" not in out and "gemini-3.6-flash · 2.0s" in out and "deep" not in out
+    assert "busy" not in out and "gemini-3.6-flash, 2.0s" in out and "deep" not in out
 
 
 def test_help_lists_every_command_and_the_hidden_shortcuts(console):
@@ -94,9 +94,9 @@ def test_nothing_on_screen_uses_the_control_symbol(console):
     toolbars = [toolbar_text(Status()), toolbar_text(Status(tray=2)), toolbar_text(Status(hotkey_ok=False))]
     out = console.file.getvalue() + "".join(toolbars)
     assert "⌃" not in out
-    assert "/deeper" in toolbar_text(Status()) and "/ for commands" in toolbar_text(Status())
+    assert "/deeper" in toolbar_text(Status()) and "/  for commands" in toolbar_text(Status())
     assert "/follow" in toolbar_text(Status(tray=2))
-    assert "/open" in out and "Ctrl+C to stop" in out
+    assert "/open" in out and "Ctrl+C stops" in out
 
 
 def test_thinking_line_has_pix_verb_timer_and_stop_hint(console):
@@ -104,7 +104,7 @@ def test_thinking_line_has_pix_verb_timer_and_stop_hint(console):
 
     console.print(Thinking(images=True))
     out = console.file.getvalue()
-    assert "⌜•‿•⌝  Squinting at your screenshot… 0s · Ctrl+C to stop" in out
+    assert "⌜•‿•⌝  Reading your screenshot… 0s, Ctrl+C stops" in out
 
 
 def test_thinking_line_holds_still_when_animations_are_off(console):
@@ -113,7 +113,7 @@ def test_thinking_line_holds_still_when_animations_are_off(console):
     thinking = Thinking(images=True, animated=False)
     thinking.started -= 10  # 10 seconds in: an animated Pix would have moved on
     console.print(thinking)
-    assert "⌜•‿•⌝  Squinting at your screenshot… 10s" in console.file.getvalue()
+    assert "⌜•‿•⌝  Reading your screenshot… 10s" in console.file.getvalue()
 
 
 def test_errors_get_a_sad_pix_and_reactions_a_happy_one(console):
@@ -153,9 +153,10 @@ def test_web_answers_get_their_own_badge():
 
 def test_toolbar_shows_attached_code():
     text = toolbar_text(Status(code="Java"))
-    assert text.startswith("📝 Java code in tray") and "⏎ ask" in text
+    assert text.startswith("In the tray: Java code.") and "Enter  ask" in text
     both = toolbar_text(Status(tray=1, code="Python"))
-    assert both.startswith("📸 1 shot in tray · 📝 Python code in tray")
+    assert both.startswith("In the tray: 1 shot and Python code.")
+    assert not any(ch in text + both for ch in "📸📝⏎·")  # plain text, no emoji or dot-joined strings
 
 
 def test_help_lists_playground(console):

@@ -4,30 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fixel Playground</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238B7CFF' stroke-width='2'%3E%3Cpath d='M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230A64D6' stroke-width='2'%3E%3Cpath d='M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Schibsted+Grotesk:wght@400;500;600&family=Silkscreen&display=swap">
 <link rel="stylesheet" href="/monaco/vs/editor/editor.main.css">
 <style>
   :root {
-    --paper: #ecebf3;   /* page */
-    --sheet: #fafafd;   /* panes */
-    --ink: #1e1b33;
-    --muted: #6b6884;
-    --rule: #d9d7e6;
-    --select: #8b7cff;  /* Pix violet: only for things that are selected */
-    --sky: #5aa9ff;     /* the screenshot-selection tint */
-    --ok: #1f8a5b;
-    --bad: #c8323c;
+    --paper: #eef0f2;   /* page: plain neutral grey, like a Mac window's chrome */
+    --sheet: #ffffff;   /* panes */
+    --ink: #1c1e21;
+    --muted: #656b73;
+    --rule: #d6dadf;
+    --select: #0a64d6;  /* macOS selection blue: only for things that are selected */
+    --ok: #1d7a4c;
+    --bad: #c4302b;
     --ui: "Schibsted Grotesk", system-ui, sans-serif;
     --code: "Fragment Mono", ui-monospace, Menlo, monospace;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --paper: #15131f; --sheet: #1c1a29; --ink: #eceaf6; --muted: #9d99b5; --rule: #2e2b40;
-      --select: #a99bff; --ok: #5fd38d; --bad: #ff6b6b;
+      --paper: #18191b; --sheet: #1f2023; --ink: #e6e7e9; --muted: #9a9fa6; --rule: #313338;
+      --select: #3d8cff; --ok: #4cc27f; --bad: #ff6a5f;
       color-scheme: dark;
     }
   }
@@ -221,25 +220,25 @@ function loadMonaco() {
 
 function defineThemes(monaco) {
   const rules = (dark) => [
-    { token: "keyword", foreground: dark ? "B6A9FF" : "6A5CF0" },
-    { token: "string", foreground: dark ? "7FDCA4" : "1F8A5B" },
-    { token: "number", foreground: dark ? "7FBFFF" : "2F7FD8" },
-    { token: "comment", foreground: dark ? "777392" : "8C89A3", fontStyle: "italic" },
-    { token: "tag", foreground: dark ? "B6A9FF" : "6A5CF0" },
-    { token: "attribute.name", foreground: dark ? "7FBFFF" : "2F7FD8" },
-    { token: "attribute.value", foreground: dark ? "7FDCA4" : "1F8A5B" },
-    { token: "metatag", foreground: dark ? "777392" : "8C89A3" },
-    { token: "metatag.content", foreground: dark ? "777392" : "8C89A3" },
-    { token: "delimiter", foreground: dark ? "9D99B5" : "6B6884" },
+    { token: "keyword", foreground: dark ? "79B0FF" : "0A4FB0" },
+    { token: "string", foreground: dark ? "6FD39A" : "1D7A4C" },
+    { token: "number", foreground: dark ? "E3B061" : "9A5B00" },
+    { token: "comment", foreground: "7D838B", fontStyle: "italic" },
+    { token: "tag", foreground: dark ? "79B0FF" : "0A4FB0" },
+    { token: "attribute.name", foreground: dark ? "E3B061" : "9A5B00" },
+    { token: "attribute.value", foreground: dark ? "6FD39A" : "1D7A4C" },
+    { token: "metatag", foreground: "7D838B" },
+    { token: "metatag.content", foreground: "7D838B" },
+    { token: "delimiter", foreground: dark ? "9A9FA6" : "656B73" },
   ];
   monaco.editor.defineTheme("fixel-light", { base: "vs", inherit: true, rules: rules(false), colors: {
-    "editor.background": "#FAFAFD", "editor.lineHighlightBackground": "#F1F0FA", "editorLineNumber.foreground": "#B3B0C6",
-    "editorLineNumber.activeForeground": "#6B6884", "editorCursor.foreground": "#8B7CFF", "editor.selectionBackground": "#5AA9FF40",
-    "editorIndentGuide.background1": "#ECEBF3", "focusBorder": "#00000000" } });
+    "editor.background": "#FFFFFF", "editor.lineHighlightBackground": "#F3F5F7", "editorLineNumber.foreground": "#A9AFB6",
+    "editorLineNumber.activeForeground": "#656B73", "editorCursor.foreground": "#0A64D6", "editor.selectionBackground": "#0A64D640",
+    "editorIndentGuide.background1": "#EEF0F2", "focusBorder": "#00000000" } });
   monaco.editor.defineTheme("fixel-dark", { base: "vs-dark", inherit: true, rules: rules(true), colors: {
-    "editor.background": "#1C1A29", "editor.lineHighlightBackground": "#232036", "editorLineNumber.foreground": "#4E4A66",
-    "editorLineNumber.activeForeground": "#9D99B5", "editorCursor.foreground": "#A99BFF", "editor.selectionBackground": "#5AA9FF40",
-    "editorIndentGuide.background1": "#2E2B40", "focusBorder": "#00000000" } });
+    "editor.background": "#1F2023", "editor.lineHighlightBackground": "#26282B", "editorLineNumber.foreground": "#4A4E54",
+    "editorLineNumber.activeForeground": "#9A9FA6", "editorCursor.foreground": "#3D8CFF", "editor.selectionBackground": "#3D8CFF40",
+    "editorIndentGuide.background1": "#313338", "focusBorder": "#00000000" } });
 }
 
 const darkQuery = matchMedia("(prefers-color-scheme: dark)");

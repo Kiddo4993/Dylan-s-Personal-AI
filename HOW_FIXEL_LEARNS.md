@@ -119,8 +119,8 @@ The model itself forgets everything between conversations. Fixel doesn't. After 
 **Checking its notes before answering.** When you press Enter on a new problem, Fixel searches your past cases for ones whose key phrase shows up on your new screen. A past case counts if at least 60% of its key words appear (`recall_threshold = 0.6`). Fixel shows you what it found:
 
 ```
-🧠 Using your past case from Sep 12 ✅: ModuleNotFoundError: No module named 'numpy'
-   /open shows it · plus 2 notes about you
+Using your past case from Sep 12, the fix worked: ModuleNotFoundError: No module named 'numpy'
+/open shows it, plus 2 notes about you.
 ```
 
 It then sends up to two matching cases to the AI along with your question, in a block marked `[Fixel memory]`. The AI builds on a past fix if it's relevant and ignores it if it isn't. This technique is called **retrieval-augmented generation (RAG)**: Fixel *retrieves* your history and hands it to the model, so the model's answer is *augmented* by what worked for you before. Nothing about the model itself changes.

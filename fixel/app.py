@@ -189,7 +189,7 @@ class FixelApp:
     async def capture_once(self) -> None:
         status = self.ui.status
         if not self.screen_ok:
-            status.flash_msg("⚠ Screen Recording permission is missing. Run `fixel setup`.")
+            status.flash_msg("Screen Recording permission is missing. Run fixel setup.")
             return
         if len(self.session.tray) >= MAX_TRAY:
             status.flash_msg(f"Tray is full ({MAX_TRAY} shots). Press Enter to ask.")
@@ -342,7 +342,7 @@ class FixelApp:
         """Playground code goes in the tray; Enter asks about it like a screenshot."""
         self.session.attach_code(att)
         self._sync_status()
-        self.ui.status.flash_msg(f"📝 {LANGS[att.lang].label} code is in the tray. Press Enter to ask, or type a question.")
+        self.ui.status.flash_msg(f"Your {LANGS[att.lang].label} code is in the tray. Press Enter to ask, or type a question.")
         if self._raise_window is not None:
             asyncio.ensure_future(self._raise_window())
 

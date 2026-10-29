@@ -21,9 +21,9 @@ def _check_anthropic(key: str, model: str) -> str:
         return "[red]✖ Anthropic rejected this key.[/]"
     except anthropic.NotFoundError:
         ids = ", ".join(m.id for m in client.models.list(limit=20))
-        return f"[yellow]⚠ Key works, but '{model}' wasn't found. Available: {ids}. Update the models section of ~/.fixel/config.toml.[/]"
+        return f"[yellow]! Key works, but '{model}' wasn't found. Available: {ids}. Update the models section of ~/.fixel/config.toml.[/]"
     except anthropic.APIConnectionError:
-        return "[yellow]⚠ Couldn't reach Anthropic to check the key (it's saved anyway).[/]"
+        return "[yellow]! Couldn't reach Anthropic to check the key (it's saved anyway).[/]"
 
 
 def _check_gemini(key: str, model: str) -> str:
@@ -35,10 +35,10 @@ def _check_gemini(key: str, model: str) -> str:
         return f"[green]✔ Key works and {model} is available.[/]"
     except errors.APIError as e:
         if e.code == 404:
-            return f"[yellow]⚠ Key works, but '{model}' wasn't found. Update the models section of ~/.fixel/config.toml.[/]"
+            return f"[yellow]! Key works, but '{model}' wasn't found. Update the models section of ~/.fixel/config.toml.[/]"
         return f"[red]✖ Google rejected this key ({e.code}).[/]"
     except Exception:
-        return "[yellow]⚠ Couldn't reach Google to check the key (it's saved anyway).[/]"
+        return "[yellow]! Couldn't reach Google to check the key (it's saved anyway).[/]"
 
 
 def _check_openai(key: str, model: str) -> str:
@@ -51,11 +51,11 @@ def _check_openai(key: str, model: str) -> str:
     except openai.AuthenticationError:
         return "[red]✖ OpenAI rejected this key.[/]"
     except openai.NotFoundError:
-        return f"[yellow]⚠ Key works, but '{model}' wasn't found. Update the models section of ~/.fixel/config.toml.[/]"
+        return f"[yellow]! Key works, but '{model}' wasn't found. Update the models section of ~/.fixel/config.toml.[/]"
     except openai.APIConnectionError:
-        return "[yellow]⚠ Couldn't reach OpenAI to check the key (it's saved anyway).[/]"
+        return "[yellow]! Couldn't reach OpenAI to check the key (it's saved anyway).[/]"
     except Exception as e:
-        return f"[yellow]⚠ Couldn't reach OpenAI to check the key: {e}[/]"
+        return f"[yellow]! Couldn't reach OpenAI to check the key: {e}[/]"
 
 
 PROVIDERS = (
@@ -107,5 +107,5 @@ def run_setup(cfg: Config, console: Console | None = None) -> None:
             continue
         request()
         permissions.open_settings(url)
-        console.print(f"[yellow]⚠ {name}: switch on {app_name} in the Settings page that just opened, then quit and reopen {app_name}.[/]")
+        console.print(f"[yellow]! {name}: switch on {app_name} in the Settings page that just opened, then quit and reopen {app_name}.[/]")
     console.print("\nDone. Start Fixel with: [bold]fixel[/]")

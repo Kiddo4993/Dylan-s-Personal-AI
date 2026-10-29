@@ -10,7 +10,7 @@ and an AI answers in your terminal: the fix, the steps, the draft, or the code.
 [![Tests](https://github.com/Kiddo4993/Dylan-s-Personal-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/Kiddo4993/Dylan-s-Personal-AI/actions/workflows/tests.yml)
 ![macOS](https://img.shields.io/badge/macOS-only-black?logo=apple)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
-![Models](https://img.shields.io/badge/Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT-your%20own%20key-A99BFF)
+![Models](https://img.shields.io/badge/Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT-your%20own%20key-555)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 <img src="docs/images/home.svg" alt="Fixel's home screen: Pix the mascot, readiness checks, memory stats and recent cases" width="760">
@@ -19,10 +19,13 @@ and an AI answers in your terminal: the fix, the steps, the draft, or the code.
 
 ## Why Fixel
 
-- **No copy-paste.** Screenshot the problem; Fixel reads it, works out what kind of problem it is, and answers in the right format.
-- **It remembers.** Fixel finds problems you've solved before and reuses the fix that worked. `/worked` teaches it which fixes to trust.
-- **Bring your own key.** Claude, Gemini or GPT, with keys kept in the macOS Keychain. No account, no server, no subscription.
-- **Built for students and builders.** It has learn mode (hints, not answers), a built-in IDE for Python, Java, JS and C++, and Canvas homework planning that syncs to Notion.
+You don't copy and paste anything. Screenshot the problem, and Fixel reads it, works out what kind of problem it is, and answers in the format that fits.
+
+It remembers what worked. When something you've solved before shows up again, Fixel hands the AI the fix that worked last time. Type `/worked` to tell it which fixes to trust.
+
+It runs on your own Claude, Gemini or OpenAI key, kept in the macOS Keychain. There's no account, no server and no subscription.
+
+It also has a learn mode that gives hints instead of answers, a built-in IDE for Python, Java, JavaScript and C++, and Canvas homework planning that syncs to Notion.
 
 <div align="center"><img src="docs/images/answer.svg" alt="Fixel explaining a ModuleNotFoundError and giving the pip command that fixes it" width="760"></div>
 
@@ -43,7 +46,7 @@ and an AI answers in your terminal: the fix, the steps, the draft, or the code.
 - **Stack shots:** double-tap again before asking to add more screenshots (error + code + config) to one question.
 - **Learn mode:** `/learn` switches to hints and guiding questions instead of answers; `/answer` reveals the full solution.
 
-**Meet Pix.** Fixel's mascot is a little face made from screenshot-selection corners. It focuses in when Fixel starts, blinks and glances around while it's thinking (*Squinting at your screenshot…*), cheers when you type `/worked`, and frowns at errors. Set `animations = false` in `~/.fixel/config.toml` to keep it still.
+**Meet Pix.** Fixel's mascot is a little face made from screenshot-selection corners. It focuses in when Fixel starts, blinks and glances around while Fixel waits for the AI (*Reading your screenshot… 4s*), cheers when you type `/worked`, and frowns at errors. Set `animations = false` in `~/.fixel/config.toml` to keep it still.
 
 ## Install
 
