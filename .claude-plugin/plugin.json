@@ -1,0 +1,12 @@
+{
+  "name": "fixel",
+  "description": "Let Claude Code see your screen (drag-select a screenshot), check your Canvas homework with AI priorities and start-by dates, and search the fixes Fixel remembers.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Dylan"
+  },
+  "homepage": "https://github.com/Kiddo4993/Dylan-s-Personal-AI",
+  "repository": "https://github.com/Kiddo4993/Dylan-s-Personal-AI",
+  "license": "MIT",
+  "keywords": ["screenshot", "macos", "canvas", "homework", "notion", "students"]
+}

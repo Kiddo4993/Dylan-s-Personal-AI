@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "fixel",
+  "description": "Fixel for Claude Code: screenshots, Canvas homework and past fixes from your terminal.",
+  "owner": {
+    "name": "Dylan"
+  },
+  "plugins": [
+    {
+      "name": "fixel",
+      "description": "Let Claude Code see your screen, check your Canvas homework with AI plans, and search the fixes Fixel remembers.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}

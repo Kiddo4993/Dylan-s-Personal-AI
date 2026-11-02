@@ -13,7 +13,7 @@ and an AI answers in your terminal: the fix, the steps, the draft, or the code.
 ![Models](https://img.shields.io/badge/Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT-your%20own%20key-555)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-<img src="docs/images/home.svg" alt="Fixel's home screen: Pix the mascot, readiness checks, memory stats and recent cases" width="760">
+<img src="docs/images/demo.gif" alt="Fixel in a terminal: the user asks why their script won't run, Pix thinks for a moment, and the answer streams in with the cause and the pip command that fixes it" width="760">
 
 </div>
 
@@ -27,7 +27,7 @@ It runs on your own Claude, Gemini or OpenAI key, kept in the macOS Keychain. Th
 
 It also has a learn mode that gives hints instead of answers, a built-in IDE for Python, Java, JavaScript and C++, and Canvas homework planning that syncs to Notion.
 
-<div align="center"><img src="docs/images/answer.svg" alt="Fixel explaining a ModuleNotFoundError and giving the pip command that fixes it" width="760"></div>
+<div align="center"><img src="docs/images/home.svg" alt="Fixel's home screen: Pix the mascot, readiness checks, memory stats and recent cases" width="760"></div>
 
 ## What it answers
 
@@ -132,6 +132,22 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 
 `/canvas forget` removes both tokens from the Keychain. `/api canvas` and `/api notion` also open the setup steps. Tokens and the feed link are secrets: they live only in the macOS Keychain (or the `CANVAS_TOKEN` and `NOTION_TOKEN` environment variables), never in a file. `~/.fixel/canvas.json` keeps only your school's address, the database id, and the AI plans.
 
+## Use it from Claude Code
+
+Fixel ships as a Claude Code plugin, so Claude can use it too. Ask Claude Code "look at my screen" and it opens the screenshot selector for you to drag. Ask "what's due this week?" and it reads your Canvas plan. Ask "have I fixed this before?" and it searches the fixes Fixel remembers.
+
+```
+/plugin install fixel --marketplace Kiddo4993/Dylan-s-Personal-AI
+```
+
+On older Claude Code: `/plugin marketplace add Kiddo4993/Dylan-s-Personal-AI`, then `/plugin install fixel@fixel`. The plugin calls three commands you can also use in your own scripts:
+
+| Command | Prints |
+|---|---|
+| `fixel shot [--out file.png]` | the path of the region you drag over (exit 1 if you press Esc) |
+| `fixel canvas --json` | your upcoming assignments with priority, hours, start-by date and tip |
+| `fixel cases [words] --json` | matching past cases, and whether each fix worked |
+
 ## Customize
 
 - `~/.fixel/config.toml` sets the default model, model IDs, the backup Gemini models used when Google is busy or slow (`gemini_fallbacks`, `slow_model_seconds`), the double-tap speed, the notes folder, and how closely a past problem must match before Fixel reuses it (`recall_threshold`).
@@ -141,14 +157,31 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 
 Screenshots go only to the model provider you've selected (Anthropic, Google, or OpenAI). `/canvas` sends that same provider your assignment titles, classes, due dates and points (never your token), and sends Notion only the rows it writes. The case file, notes, and screenshots stay in `~/.fixel` and `~/Fixel Notes`. Claude bills per use, typically a fraction of a cent to a few cents per question; Opus costs more than Sonnet. Gemini has a free tier with rate limits.
 
+## FAQ
+
+**What does it cost?** Fixel is free. You pay your AI provider per question: typically a fraction of a cent to a few cents with Claude Sonnet, more with Opus. Gemini has a free tier.
+
+**Does my screen get uploaded somewhere?** Only the region you select, only when you press Enter, and only to the provider you picked. Reading the text in a screenshot happens on your Mac (Apple's Vision framework), and your past cases stay in `~/.fixel`.
+
+**Why not just paste it into a chat app?** Fixel saves the copy-paste and the context switch. It also remembers your fixes, so the second time an error shows up it starts from what worked, and `/run` and `/copy` act on the answer directly.
+
+**Windows or Linux?** Not yet. The hotkey, screenshots and text reading use macOS frameworks. A port of those three small modules would be a welcome contribution.
+
+**Is it OK for school?** Turn on `/learn`, and Fixel gives hints and guiding questions instead of answers. Follow your class's rules on AI tools.
+
+**Do I need Canvas or Notion?** No. Both are optional, and Fixel works without them.
+
+**The hotkey does nothing.** Run `fixel setup` in Terminal.app and switch Terminal on under Privacy & Security → Input Monitoring, then quit and reopen Terminal.
+
 ## Develop
 
 ```bash
 .venv/bin/pytest -q                     # the full suite; no network, no API keys needed
 .venv/bin/python scripts/screenshots.py # redraw the README's screenshots from Fixel's real rendering code
+.venv/bin/pip install -e '.[docs]' && .venv/bin/python scripts/demo_gif.py   # redraw the demo GIF
 ```
 
-Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers the house rules (one command registry, fakes instead of the network, plain-English messages). If Fixel helps you, a ⭐ helps other people find it.
+Contributions are welcome. Please read the [code of conduct](CODE_OF_CONDUCT.md). [CONTRIBUTING.md](CONTRIBUTING.md) covers the house rules (one command registry, fakes instead of the network, plain-English messages). If Fixel helps you, a ⭐ helps other people find it.
 
 ## License
 

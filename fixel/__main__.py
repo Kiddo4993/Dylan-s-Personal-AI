@@ -1,4 +1,4 @@
-"""Entry point: `fixel`, `fixel --here`, `fixel setup`, `fixel ide [language]`."""
+"""Entry point: `fixel`, `fixel --here`, `fixel setup`, `fixel ide [language]`, and the one-shot `shot`, `canvas`, `cases`."""
 
 from __future__ import annotations
 
@@ -10,8 +10,14 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="fixel", description="Double-tap Right Option, screenshot anything, get unstuck.")
-    parser.add_argument("command", nargs="?", choices=["setup", "ide"], help="setup: save API keys and check permissions · ide: the terminal IDE (Fixel's /ide opens it in its own window)")
-    parser.add_argument("lang", nargs="?", help="ide: python, java, js or cpp")
+    parser.add_argument(
+        "command", nargs="?", choices=["setup", "ide", "shot", "canvas", "cases"],
+        help="setup: keys and permissions · ide [language]: the terminal IDE · shot: drag-select a screenshot, print its path · "
+        "canvas: your Canvas homework with AI plans · cases [words]: search your past fixes",
+    )
+    parser.add_argument("rest", nargs="*", help="ide: python, java, js or cpp · cases: words to search for")
+    parser.add_argument("--json", action="store_true", help="canvas, cases: print JSON (for scripts and Claude Code)")
+    parser.add_argument("--out", help="shot: where to save the PNG")
     parser.add_argument("--here", action="store_true", help="run in this terminal instead of opening a Terminal.app window")
     args = parser.parse_args(argv)
 
@@ -28,7 +34,15 @@ def main(argv: list[str] | None = None) -> int:
         from .playground.window import run_window
 
         terminal.set_title("Fixel IDE")
-        return asyncio.run(run_window(cfg, args.lang))
+        return asyncio.run(run_window(cfg, args.rest[0] if args.rest else None))
+    if args.command in ("shot", "canvas", "cases"):
+        from . import cli
+
+        if args.command == "shot":
+            return asyncio.run(cli.shot(cfg, args.out))
+        if args.command == "canvas":
+            return asyncio.run(cli.canvas(cfg, args.json))
+        return cli.cases(cfg, args.rest, args.json)
 
     from . import terminal
 

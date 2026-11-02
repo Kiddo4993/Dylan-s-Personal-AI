@@ -147,24 +147,29 @@ class CanvasCommand:
             return CalendarFeed(secret, self._fetch)
         return CanvasAPI(store.base, secret, self._fetch)
 
-    async def sync(self) -> None:
+    async def sync(self, *, table: bool = True) -> tuple[list, dict] | None:
+        """Fetch, plan and push. Returns (assignments, plans), or None after saying what went wrong."""
         store = self._store()
         source = self._source(store)
         if source is None:
             self.ui.info("Canvas isn't connected yet. /canvas setup connects it (about a minute).")
-            return
+            return None
         now = self._now()
         self.ui.info(f"Checking Canvas ({store.base.removeprefix('https://')})…")
         try:
             assignments = await asyncio.to_thread(source.upcoming, now, self.cfg.canvas_days)
         except CanvasError as e:
             self.ui.error(str(e))
-            return
+            return None
         await self._plan(store, assignments, now)
-        self.ui.canvas_table(assignments, store.plans, now, self.cfg.canvas_days)
+        if table:
+            self.ui.canvas_table(assignments, store.plans, now, self.cfg.canvas_days)
         token = get_api_key("notion")
-        if not (store.notion_database and token and assignments):
-            return
+        if store.notion_database and token and assignments:
+            await self._push(store, token, assignments)
+        return assignments, store.plans
+
+    async def _push(self, store: CanvasStore, token: str, assignments) -> None:
         try:
             added, updated = await asyncio.to_thread(push, Notion(token, self._fetch), store.notion_database, assignments, store)
         except NotionError as e:
