@@ -7,7 +7,7 @@ description: Use the Fixel app (a macOS screenshot-to-AI terminal tool) from Cla
 
 Fixel is a macOS terminal app. It also gives Claude Code three one-shot commands, which this skill uses. All three print data to stdout and progress or problems to stderr, so `--json` output always parses.
 
-Check that it's installed first: `command -v fixel`. If it isn't, point the user to https://github.com/Kiddo4993/Dylan-s-Personal-AI#install and stop, rather than guessing at another tool.
+Check that it's installed first: `command -v fixel`. If it isn't, point the user to https://github.com/Kiddo4993/fixel#install and stop, rather than guessing at another tool.
 
 ## See the user's screen: `fixel shot`
 

@@ -32,8 +32,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Kiddo4993/Dylan-s-Personal-AI"
-Issues = "https://github.com/Kiddo4993/Dylan-s-Personal-AI/issues"
+Homepage = "https://github.com/Kiddo4993/fixel"
+Issues = "https://github.com/Kiddo4993/fixel/issues"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]

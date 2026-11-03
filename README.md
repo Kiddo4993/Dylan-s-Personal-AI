@@ -7,7 +7,7 @@
 Double-tap **Right Option ⌥**, drag over an error, a math problem, an email or a webpage,<br>
 and an AI answers in your terminal: the fix, the steps, the draft, or the code.
 
-[![Tests](https://github.com/Kiddo4993/Dylan-s-Personal-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/Kiddo4993/Dylan-s-Personal-AI/actions/workflows/tests.yml)
+[![Tests](https://github.com/Kiddo4993/fixel/actions/workflows/tests.yml/badge.svg)](https://github.com/Kiddo4993/fixel/actions/workflows/tests.yml)
 ![macOS](https://img.shields.io/badge/macOS-only-black?logo=apple)
 ![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)
 ![Models](https://img.shields.io/badge/Claude%20%C2%B7%20Gemini%20%C2%B7%20GPT-your%20own%20key-555)
@@ -53,7 +53,7 @@ It also has a learn mode that gives hints instead of answers, a built-in IDE for
 You need macOS and Python 3.11 or newer (`brew install python@3.12`).
 
 ```bash
-git clone https://github.com/Kiddo4993/Dylan-s-Personal-AI.git fixel && cd fixel
+git clone https://github.com/Kiddo4993/fixel.git && cd fixel
 /opt/homebrew/bin/python3.12 -m venv .venv
 .venv/bin/pip install -e '.[dev]'
 ln -sf "$PWD/.venv/bin/fixel" /opt/homebrew/bin/fixel   # makes `fixel` work everywhere
@@ -137,10 +137,10 @@ Prefer keys? Every one-step command also has a Ctrl shortcut (Ctrl+T `/deeper`, 
 Fixel ships as a Claude Code plugin, so Claude can use it too. Ask Claude Code "look at my screen" and it opens the screenshot selector for you to drag. Ask "what's due this week?" and it reads your Canvas plan. Ask "have I fixed this before?" and it searches the fixes Fixel remembers.
 
 ```
-/plugin install fixel --marketplace Kiddo4993/Dylan-s-Personal-AI
+/plugin install fixel --marketplace Kiddo4993/fixel
 ```
 
-On older Claude Code: `/plugin marketplace add Kiddo4993/Dylan-s-Personal-AI`, then `/plugin install fixel@fixel`. The plugin calls three commands you can also use in your own scripts:
+On older Claude Code: `/plugin marketplace add Kiddo4993/fixel`, then `/plugin install fixel@fixel`. The plugin calls three commands you can also use in your own scripts:
 
 | Command | Prints |
 |---|---|
