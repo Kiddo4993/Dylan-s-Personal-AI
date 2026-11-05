@@ -3,73 +3,262 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fixel: screenshot what you're stuck on, read the fix in your terminal</title>
+<title>Fixel</title>
 <meta name="description" content="Fixel is a free, open-source macOS terminal app. Double-tap Right Option, drag over an error, a math problem or a webpage, and an AI answers with your own Claude, Gemini or OpenAI key. It remembers your fixes, has a built-in IDE, and plans your Canvas homework.">
 <meta property="og:title" content="Fixel">
 <meta property="og:description" content="Screenshot what you're stuck on. Read the fix in your terminal.">
 <meta property="og:image" content="https://kiddo4993.github.io/fixel/images/social-preview.png">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230A64D6' stroke-width='2'%3E%3Cpath d='M1 6V1h5M10 1h5v5M15 10v5h-5M6 15H1v-5'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap">
+<link rel="preload" href="fonts/DepartureMono-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;600&family=Atkinson+Hyperlegible+Next:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
+  @font-face {
+    font-family: "Departure Mono";
+    src: url(fonts/DepartureMono-Regular.woff2) format("woff2");
+    font-display: swap;
+  }
   :root {
-    --page: #e4e7eb; --ink: #1c1e21; --muted: #4f555c; --rule: #c9ced4; --code: #f6f7f8; --select: #0a64d6;
+    --desk: #e4e6e9; --ink: #1f2125; --muted: #565c64; --rule: #c3c8ce; --well: #f3f4f6;
+    --select: #0960cc; --select-fill: rgba(9, 96, 204, .07); --readout-bg: #2b2d31; --readout-ink: #fff;
+    --body: "Atkinson Hyperlegible Next", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: "Atkinson Hyperlegible Mono", ui-monospace, Menlo, monospace;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --page: #18191b; --ink: #e6e7e9; --muted: #a2a7ad; --rule: #34363a; --code: #222326; --select: #4c9bff; color-scheme: dark; }
+    :root:not([data-theme="light"]) {
+      --desk: #1b1d20; --ink: #e7e9ec; --muted: #a0a6ad; --rule: #36393e; --well: #24272b;
+      --select: #4c9bff; --select-fill: rgba(76, 155, 255, .08); --readout-bg: #e7e9ec; --readout-ink: #1b1d20;
+      color-scheme: dark;
+    }
   }
+  :root[data-theme="dark"] {
+    --desk: #1b1d20; --ink: #e7e9ec; --muted: #a0a6ad; --rule: #36393e; --well: #24272b;
+    --select: #4c9bff; --select-fill: rgba(76, 155, 255, .08); --readout-bg: #e7e9ec; --readout-ink: #1b1d20;
+    color-scheme: dark;
+  }
+
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--page); color: var(--ink);
-    font: 400 18px/1.55 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    margin: 0; background: var(--desk); color: var(--ink);
+    font: 400 19px/1.6 var(--body);
+    -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 860px; margin: 0 auto; padding: 72px 24px 56px; }
-  h1 { margin: 0 0 16px; font: 400 56px/1 Silkscreen, monospace; letter-spacing: 2px; }
-  .pitch { margin: 0 0 36px; font-size: 26px; line-height: 1.3; max-width: 30ch; }
-  .demo { display: block; width: 100%; height: auto; border-radius: 10px; box-shadow: 0 16px 40px rgba(0, 0, 0, .25); }
-  h2 { margin: 56px 0 12px; font-size: 21px; }
-  p { margin: 0 0 14px; max-width: 64ch; }
-  .muted { color: var(--muted); }
+  main { max-width: 940px; margin: 0 auto; padding: 88px 24px 48px; }
+  .text { max-width: 660px; }
+  a { color: var(--select); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--select); outline-offset: 3px; border-radius: 3px; }
+  code, pre, kbd { font-family: var(--mono); }
+  code { font-size: .9em; }
+
+  /* The wordmark, caught mid-screenshot */
+  .shot { position: relative; display: inline-block; margin: 0 0 40px 18px; }
+  h1 {
+    margin: 0; padding: 6px 4px 0;
+    font: 400 clamp(76px, 15vw, 148px)/1 "Departure Mono", var(--mono);
+    letter-spacing: -.02em;
+  }
+  .marquee {
+    position: absolute; left: -18px; top: -16px; right: -22px; bottom: -14px;
+    border: 1.5px dashed var(--select); background: var(--select-fill);
+    pointer-events: none;
+  }
+  .marquee::after {
+    /* crosshair at the corner being dragged */
+    content: ""; position: absolute; right: -10px; bottom: -10px; width: 19px; height: 19px;
+    background:
+      linear-gradient(var(--ink), var(--ink)) center / 1.5px 100% no-repeat,
+      linear-gradient(var(--ink), var(--ink)) center / 100% 1.5px no-repeat;
+  }
+  .readout {
+    position: absolute; left: calc(100% + 16px); top: calc(100% + 8px);
+    padding: 2px 7px; border-radius: 4px; white-space: nowrap;
+    background: var(--readout-bg); color: var(--readout-ink);
+    font: 600 13px/1.5 var(--body); font-variant-numeric: tabular-nums;
+  }
+  .readout:empty { display: none; }
+
+  .pitch { margin: 0 0 28px; font-size: clamp(26px, 3.6vw, 34px); line-height: 1.22; max-width: 32ch; }
+  .pitch span { display: inline-block; }
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; margin-bottom: 56px; }
+  .get {
+    display: inline-block; padding: 12px 20px; border-radius: 7px;
+    background: var(--ink); color: var(--desk); text-decoration: none; font-weight: 700;
+  }
+  .get:hover { background: var(--select); color: #fff; }
+  .actions .quiet { color: var(--muted); }
+
+  .demo { display: block; width: 100%; height: auto; border-radius: 11px; box-shadow: 0 1px 0 rgba(0,0,0,.08), 0 22px 50px -18px rgba(0,0,0,.45); }
+  .caption { margin: 12px 0 0; font-size: 15px; color: var(--muted); }
+
+  h2 { margin: 80px 0 18px; font-size: 24px; line-height: 1.25; }
+  p { margin: 0 0 16px; }
+
+  ol.steps { list-style: none; counter-reset: step; margin: 0 0 22px; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .steps li { counter-increment: step; }
+  .steps li::before {
+    content: counter(step); display: block; margin-bottom: 6px;
+    font: 400 30px/1 "Departure Mono", var(--mono); color: var(--select);
+  }
+  .steps b { display: block; }
+  .steps span { color: var(--muted); font-size: 17px; }
+  kbd {
+    font: 600 .8em/1 var(--mono); padding: 3px 6px 2px; border: 1px solid var(--rule); border-bottom-width: 2px;
+    border-radius: 5px; background: var(--well); color: var(--ink);
+  }
+
+  dl.commands { margin: 0; display: grid; grid-template-columns: 7.5em 1fr; gap: 0 24px; }
+  .commands dt { padding: 16px 0 0; border-top: 1px solid var(--rule); font: 600 18px/1.6 var(--mono); }
+  .commands dd { margin: 0; padding: 16px 0; border-top: 1px solid var(--rule); }
+
+  .copyable { margin: 0 0 14px; }
+  .head-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 80px 0 14px; }
+  .head-row h2 { margin: 0; }
   pre {
-    margin: 0 0 14px; padding: 14px 16px; overflow-x: auto; border-radius: 8px;
-    background: var(--code); border: 1px solid var(--rule); font: 15px/1.6 ui-monospace, Menlo, monospace;
+    margin: 0; padding: 16px 18px; overflow-x: auto; border-radius: 8px;
+    background: var(--well); border: 1px solid var(--rule); font-size: 15.5px; line-height: 1.65;
   }
-  kbd { font: 600 15px/1 -apple-system, sans-serif; padding: 3px 7px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 5px; background: var(--code); }
-  a { color: var(--select); }
-  a:focus-visible { outline: 2px solid var(--select); outline-offset: 2px; }
-  .cta { display: inline-block; margin-top: 8px; padding: 11px 18px; border-radius: 8px; background: var(--ink); color: var(--page); text-decoration: none; font-weight: 600; }
-  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-size: 15px; color: var(--muted); }
-  @media (max-width: 600px) {
-    main { padding: 48px 16px 40px; }
-    h1 { font-size: 40px; }
-    .pitch { font-size: 21px; }
+  .copy {
+    padding: 4px 12px; border-radius: 5px;
+    border: 1px solid var(--rule); background: var(--desk); color: var(--ink);
+    font: 600 14px/1.5 var(--body); cursor: pointer;
+  }
+  .copy:hover { border-color: var(--muted); }
+  @media (pointer: coarse) { .copy { min-height: 44px; padding: 0 16px; } }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .note { font-size: 16px; color: var(--muted); }
+
+  footer { margin-top: 96px; padding-top: 22px; border-top: 1px solid var(--rule); font-size: 16px; color: var(--muted); }
+  footer p { margin: 0 0 6px; }
+
+  @media (max-width: 640px) {
+    main { padding: 56px 16px 40px; }
+    .shot { margin-left: 14px; margin-bottom: 52px; }
+    .readout { left: auto; right: -22px; top: calc(100% + 14px); }
+    h2, .head-row { margin-top: 60px; }
+    ol.steps { grid-template-columns: 1fr; gap: 18px; }
+    dl.commands { grid-template-columns: 1fr; }
+    .commands dd { border-top: 0; padding-top: 2px; }
   }
 </style>
 </head>
 <body>
 <main>
-  <h1>Fixel</h1>
-  <p class="pitch">Screenshot what you're stuck on. Read the fix in your terminal.</p>
+  <div class="shot">
+    <h1>Fixel</h1>
+    <div class="marquee" aria-hidden="true"><span class="readout"></span></div>
+  </div>
+  <p class="pitch"><span>Screenshot what you're stuck on.</span> <span>Read the fix in your terminal.</span></p>
+  <div class="actions">
+    <a class="get" href="https://github.com/Kiddo4993/fixel">Get Fixel on GitHub</a>
+    <a class="quiet" href="#install">Install steps</a>
+    <a class="quiet" href="https://github.com/Kiddo4993/fixel/releases/tag/v0.2.0">Version 0.2.0</a>
+  </div>
+
   <img class="demo" src="images/demo.gif" width="867" height="528"
        alt="Fixel in a terminal: the user asks why their script won't run, and the answer streams in with the cause and the pip command that fixes it">
+  <p class="caption">A real answer, drawn by Fixel's own rendering code.</p>
 
-  <h2>How it works</h2>
-  <p>Press <kbd>⌥</kbd> <kbd>⌥</kbd> (Right Option, twice) in any app and drag over an error, a math problem, an email or a webpage. Fixel works out what kind of problem it is and answers in the format that fits: the fix as a command you can run, numbered steps, a draft reply, or an HTML file that recreates the page.</p>
-  <p>It remembers what worked. When an error you've solved before comes back, Fixel hands the AI the fix that worked last time. It runs on your own Claude, Gemini or OpenAI key, kept in the macOS Keychain, with no account and no server.</p>
+  <div class="text">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><b>Press <span class="sr">Right Option twice</span><span aria-hidden="true"><kbd>⌥</kbd> <kbd>⌥</kbd></span></b><span>Double-tap Right Option, in any app.</span></li>
+      <li><b>Drag over it</b><span>An error, a math question, an email or a webpage.</span></li>
+      <li><b>Read the answer</b><span>It streams into your terminal, shaped to fit the problem.</span></li>
+    </ol>
+    <p>An error gets a command you can run. A math problem gets numbered steps. A webpage can come back as an HTML file that recreates it. Fixel runs on your own Claude, Gemini or OpenAI key, kept in the macOS Keychain. There's no account and no server in between.</p>
 
-  <h2>Made for students too</h2>
-  <p>Learn mode gives hints instead of answers. A built-in IDE runs Python, Java, JavaScript and C++ in its own Terminal window. <code>/canvas</code> lists what's due on Canvas with a priority, an hours estimate, a start-by date and a tip for each assignment, and can keep a Notion database in sync.</p>
+    <h2>Things you can type</h2>
+    <dl class="commands">
+      <dt>/worked</dt>
+      <dd>Tell Fixel a fix worked. When the same error comes back, it reaches for that fix first.</dd>
+      <dt>/learn</dt>
+      <dd>Hints and guiding questions instead of answers. <code>/answer</code> shows the full solution when you want it.</dd>
+      <dt>/ide</dt>
+      <dd>A small IDE for Python, Java, JavaScript and C++ that opens in its own Terminal window. Send your code back to Fixel to ask about it.</dd>
+      <dt>/canvas</dt>
+      <dd>What's due on Canvas, with a priority, an hours estimate, a start-by date and a tip for each assignment. It can keep a Notion database in sync.</dd>
+      <dt>/cases</dt>
+      <dd>Search everything you've asked before, with the fixes that worked listed first.</dd>
+    </dl>
 
-  <h2>Install</h2>
-  <p class="muted">macOS with Python 3.11 or newer.</p>
-<pre>git clone https://github.com/Kiddo4993/fixel.git && cd fixel
+    <div class="head-row">
+      <h2 id="install">Install</h2>
+      <button class="copy" type="button" data-copy="install-cmds" hidden>Copy</button>
+    </div>
+    <div class="copyable">
+<pre id="install-cmds">git clone https://github.com/Kiddo4993/fixel.git && cd fixel
 python3 -m venv .venv && .venv/bin/pip install -e .
 .venv/bin/fixel setup</pre>
-  <p>Using Claude Code? <code>/plugin install fixel --marketplace Kiddo4993/fixel</code> lets Claude look at your screen, check your homework, and search your past fixes.</p>
-  <a class="cta" href="https://github.com/Kiddo4993/fixel">Get Fixel on GitHub</a>
+    </div>
+    <p class="note">Needs macOS and Python 3.11 or newer. The first screenshot asks for Screen Recording permission.</p>
 
-  <footer>Free and open source under the MIT license. Made by Dylan.</footer>
+    <div class="head-row">
+      <h2>Use it from Claude Code</h2>
+      <button class="copy" type="button" data-copy="plugin-cmd" hidden>Copy</button>
+    </div>
+    <div class="copyable">
+<pre id="plugin-cmd">/plugin install fixel --marketplace Kiddo4993/fixel</pre>
+    </div>
+    <p>Claude Code can then ask you to drag over part of your screen, check what homework is due, and search your past fixes. It always tells you before it takes a screenshot.</p>
+
+    <footer>
+      <p>Fixel is free and open source under the MIT license. Made by Dylan, a high-school student.</p>
+      <p>Found a bug or have an idea? <a href="https://github.com/Kiddo4993/fixel/issues">Open an issue</a>. Want to help? Start with the <a href="https://github.com/Kiddo4993/fixel/issues?q=is%3Aopen+label%3A%22good+first+issue%22">good first issues</a>.</p>
+    </footer>
+  </div>
 </main>
+<script>
+  // The selection around the wordmark is drawn once, the way you'd drag it, and its readout shows its real size.
+  (() => {
+    const marquee = document.querySelector(".marquee");
+    const readout = document.querySelector(".readout");
+    const size = () => {
+      const r = marquee.getBoundingClientRect();
+      return [Math.round(r.width), Math.round(r.height)];
+    };
+    const show = (w, h) => { readout.textContent = `${w} × ${h}`; };
+    const settle = () => { marquee.style.cssText = ""; show(...size()); };
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!still) marquee.style.visibility = "hidden";
+
+    document.fonts.ready.then(() => {
+      const [w, h] = size();
+      if (still || !w) return settle();
+      const ms = 900, delay = 250, ease = t => 1 - Math.pow(1 - t, 3);
+      let start = null, done = false;
+      Object.assign(marquee.style, { visibility: "", right: "auto", bottom: "auto", width: "1px", height: "1px" });
+      const frame = now => {
+        if (done) return;
+        start ??= now;
+        const t = Math.min(Math.max((now - start - delay) / ms, 0), 1);
+        const cw = Math.max(1, Math.round(w * ease(t))), ch = Math.max(1, Math.round(h * ease(t)));
+        marquee.style.width = cw + "px";
+        marquee.style.height = ch + "px";
+        show(cw, ch);
+        if (t < 1) requestAnimationFrame(frame);
+        else { done = true; settle(); }
+      };
+      requestAnimationFrame(frame);
+      // If frames are paused (a background tab), still end on the full selection.
+      setTimeout(() => { if (!done) { done = true; settle(); } }, delay + ms + 400);
+    });
+    addEventListener("resize", () => show(...size()));
+
+    document.querySelectorAll(".copy").forEach(btn => {
+      if (!navigator.clipboard) return;
+      btn.hidden = false;
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).textContent);
+          btn.textContent = "Copied";
+        } catch { btn.textContent = "Select and copy"; }
+        setTimeout(() => { btn.textContent = "Copy"; }, 1600);
+      });
+    });
+  })();
+</script>
 </body>
 </html>
